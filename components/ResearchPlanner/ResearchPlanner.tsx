@@ -33,13 +33,13 @@ export default function ResearchPlanner() {
       setNodes(savedData.nodes);
       setEdges(savedData.edges);
     }
-  }, []);
-
+  }, [loadGraph]);
+  
   useEffect(() => {
     if (nodes.length > 0 || edges.length > 0) {
       saveGraph(nodes, edges);
     }
-  }, [nodes, edges]);
+  }, [nodes, edges, saveGraph]);
 
   const addNode = () => {
     if (!newItemTitle.trim()) return;
