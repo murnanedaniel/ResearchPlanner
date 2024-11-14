@@ -176,7 +176,7 @@ export default function ResearchPlanner() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-gray-50">
+    <div className="flex h-full w-full bg-gray-50">
       {/* Main Graph Area (2/3) */}
       <div className="w-2/3 h-full p-4 flex flex-col">
         <Toolbar
@@ -187,7 +187,7 @@ export default function ResearchPlanner() {
           onToggleEdgeCreate={handleToggleEdgeCreate}
         />
         
-        <div className="flex-1">
+        <div className="flex-1 h-0">
           <NodeGraph
             nodes={nodes}
             edges={edges}

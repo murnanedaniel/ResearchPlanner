@@ -65,7 +65,7 @@ export function NodeGraph({
     }, []);
 
     return (
-        <div className="relative w-full h-[600px] border border-gray-200 rounded-lg graph-container overflow-hidden bg-white shadow-sm">
+        <div className="relative w-full h-full border border-gray-200 rounded-lg graph-container overflow-hidden bg-white shadow-sm">
             <TransformWrapper
                 initialScale={1}
                 minScale={0.1}
