@@ -2,7 +2,7 @@
 const nextConfig = {
     output: 'standalone',
     experimental: {
-        optimizeCss: true,
+        optimizeCss: false,
         esmExternals: 'loose'
     },
     typescript: {
@@ -11,7 +11,10 @@ const nextConfig = {
     webpack: (config) => {
         config.resolve.fallback = { fs: false, path: false };
         return config;
-    }
+    },
+    poweredByHeader: false,
+    generateEtags: false,
+    compress: false
 }
 
 module.exports = nextConfig
