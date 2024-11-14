@@ -1,12 +1,17 @@
 export interface GraphNode {
     id: number;
     title: string;
+    description: string;
     x: number;
     y: number;
-    description: string;
-    files?: AttachedFile[];
-    isPlanned?: boolean;
-    metadata?: Record<string, any>;
+    files?: FileAttachment[];
+  }
+  
+  export interface FileAttachment {
+    id: string;
+    name: string;
+    url: string;
+    type: string;
   }
   
   export interface Edge {
@@ -17,17 +22,4 @@ export interface GraphNode {
     description: string;
     isPlanned: boolean;
     isObsolete: boolean;
-  }
-  
-  export interface AttachedFile {
-    id: number;
-    name: string;
-    type: 'meeting' | 'slide' | 'pdf' | 'literature';
-    url: string;
-    uploadedAt: Date;
-  }
-  
-  export interface Position {
-    x: number;
-    y: number;
   }
