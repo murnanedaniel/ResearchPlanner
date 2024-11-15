@@ -7,6 +7,7 @@ import { GRAPH_CONSTANTS } from '../../constants';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ScalingText } from '../shared/ScalingText';
 
 function ZoomControls() {
   const { zoomIn, zoomOut, resetTransform } = useControls();
@@ -40,6 +41,51 @@ interface NodeGraphProps {
     onEdgeDelete: (id: number) => void;
     onNodeDragEnd: (id: number, x: number, y: number) => void;
 }
+
+const WrappedEdgeLabel = ({ text, x1, y1, x2, y2 }: { 
+    text: string;
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+}) => {
+    const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+
+    // Calculate perpendicular offset
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    
+    // Get unit perpendicular vector (rotated 90 degrees counterclockwise)
+    const perpX = -dy / length;
+    const perpY = dx / length;
+    
+    // Offset by a fixed amount in the perpendicular direction
+    const offset = 25; // Adjust this value to control label distance from line
+    const labelX = midX + perpX * offset;
+    const labelY = midY + perpY * offset;
+
+    return (
+        <g transform={`translate(${labelX},${labelY}) rotate(${angle < 90 && angle > -90 ? angle : angle + 180})`}>
+            <foreignObject
+                x={-GRAPH_CONSTANTS.EDGE_MAX_WIDTH / 2}
+                y={-GRAPH_CONSTANTS.MAX_FONT_SIZE * 1.5}
+                width={GRAPH_CONSTANTS.EDGE_MAX_WIDTH}
+                height={GRAPH_CONSTANTS.MAX_FONT_SIZE * 5}
+            >
+                <div className="w-full h-full flex items-center justify-center">
+                    <ScalingText 
+                        text={text} 
+                        className="fill-slate-500 pointer-events-none select-none"
+                        verticalAlign="top"
+                    />
+                </div>
+            </foreignObject>
+        </g>
+    );
+};
 
 export function NodeGraph({
     nodes,
@@ -126,10 +172,21 @@ export function NodeGraph({
                                         className="cursor-pointer group"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            console.log('Edge group clicked:', edge);
+                                            console.log('Edge clicked:', edge);
                                             onEdgeEdit(edge);
                                         }}
                                     >
+                                        {/* Invisible wider line for better click detection */}
+                                        <line
+                                            x1={startX}
+                                            y1={startY}
+                                            x2={endX}
+                                            y2={endY}
+                                            stroke="transparent"
+                                            strokeWidth="20"
+                                            className="cursor-pointer"
+                                        />
+                                        {/* Visible line */}
                                         <line
                                             x1={startX}
                                             y1={startY}
@@ -141,14 +198,13 @@ export function NodeGraph({
                                             className="group-hover:stroke-blue-500"
                                         />
                                         {edge.title && (
-                                            <text
-                                                x={(startX + endX) / 2}
-                                                y={(startY + endY) / 2 - 10}
-                                                textAnchor="middle"
-                                                className="text-sm fill-slate-500 pointer-events-none"
-                                            >
-                                                {edge.title}
-                                            </text>
+                                            <WrappedEdgeLabel
+                                                text={edge.title}
+                                                x1={startX}
+                                                y1={startY}
+                                                x2={endX}
+                                                y2={endY}
+                                            />
                                         )}
                                     </g>
                                 );

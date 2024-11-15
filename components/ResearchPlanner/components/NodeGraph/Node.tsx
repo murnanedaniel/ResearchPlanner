@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { GraphNode } from '../../types';
 import { GRAPH_CONSTANTS } from '../../constants';
 import { useTransformContext } from 'react-zoom-pan-pinch';
+import { ScalingText } from '../shared/ScalingText';
 
 interface NodeProps {
     node: GraphNode;
@@ -74,8 +75,8 @@ export function Node({
             style={{
                 left: node.x,
                 top: node.y,
-                width: GRAPH_CONSTANTS.NODE_RADIUS * 2,
-                height: GRAPH_CONSTANTS.NODE_RADIUS * 2,
+                width: GRAPH_CONSTANTS.NODE_DIAMETER,
+                height: GRAPH_CONSTANTS.NODE_DIAMETER,
                 transform: 'translate(-50%, -50%)'
             }}
             onClick={handleClick}
@@ -91,14 +92,12 @@ export function Node({
                 <X className="h-3 w-3" />
             </button>
             <div
-                className="node-drag-handle w-full h-full flex items-center justify-center"
+                className="node-drag-handle w-full h-full flex items-center justify-center p-3"
                 draggable
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
             >
-                <span className="text-sm font-medium px-2 truncate max-w-[120px]">
-                    {node.title}
-                </span>
+                <ScalingText text={node.title} />
             </div>
         </div>
     );
