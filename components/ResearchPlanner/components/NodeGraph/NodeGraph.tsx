@@ -40,14 +40,16 @@ interface NodeGraphProps {
     onEdgeEdit: (edge: Edge) => void;
     onEdgeDelete: (id: number) => void;
     onNodeDragEnd: (id: number, x: number, y: number) => void;
+    onMarkObsolete: (id: number) => void;
 }
 
-const WrappedEdgeLabel = ({ text, x1, y1, x2, y2 }: { 
+const WrappedEdgeLabel = ({ text, x1, y1, x2, y2, className = '' }: { 
     text: string;
     x1: number;
     y1: number;
     x2: number;
     y2: number;
+    className?: string;
 }) => {
     const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
     const midX = (x1 + x2) / 2;
@@ -78,7 +80,7 @@ const WrappedEdgeLabel = ({ text, x1, y1, x2, y2 }: {
                 <div className="w-full h-full flex items-center justify-center">
                     <ScalingText 
                         text={text} 
-                        className="fill-slate-500 pointer-events-none select-none"
+                        className={`text-slate-600 pointer-events-none select-none ${className}`}
                         verticalAlign="top"
                     />
                 </div>
@@ -99,7 +101,8 @@ export function NodeGraph({
     onEdgeCreate,
     onEdgeEdit,
     onEdgeDelete,
-    onNodeDragEnd
+    onNodeDragEnd,
+    onMarkObsolete
 }: NodeGraphProps) {
     const [initialPosition, setInitialPosition] = useState({ x: 0, y: 0 });
 
@@ -195,7 +198,7 @@ export function NodeGraph({
                                             stroke="#64748b"
                                             strokeWidth="2"
                                             markerEnd="url(#arrowhead)"
-                                            className="group-hover:stroke-blue-500"
+                                            className={`group-hover:stroke-blue-500 ${edge.isObsolete ? 'opacity-50' : ''}`}
                                         />
                                         {edge.title && (
                                             <WrappedEdgeLabel
@@ -204,6 +207,7 @@ export function NodeGraph({
                                                 y1={startY}
                                                 x2={endX}
                                                 y2={endY}
+                                                className={edge.isObsolete ? 'opacity-50' : ''}
                                             />
                                         )}
                                     </g>
@@ -223,6 +227,7 @@ export function NodeGraph({
                                 onNodeDelete={onNodeDelete}
                                 onEdgeCreate={onEdgeCreate}
                                 onDragEnd={onNodeDragEnd}
+                                onMarkObsolete={onMarkObsolete}
                             />
                         ))}
                     </div>

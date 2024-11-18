@@ -50,7 +50,8 @@ export default function ResearchPlanner() {
       title: newItemTitle,
       x: position.x,
       y: position.y,
-      description: ''
+      description: '',
+      isObsolete: false
     };
 
     setNodes([...nodes, newNode]);
@@ -175,6 +176,51 @@ export default function ResearchPlanner() {
     }
   };
 
+  const getDownstreamNodes = (startNodeId: number, nodes: GraphNode[], edges: Edge[]): Set<number> => {
+    const downstream = new Set<number>([startNodeId]);
+    const queue = [startNodeId];
+    
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      
+      edges
+        .filter(edge => edge.source === currentId)
+        .forEach(edge => {
+          if (!downstream.has(edge.target)) {
+            downstream.add(edge.target);
+            queue.push(edge.target);
+          }
+        });
+    }
+    
+    return downstream;
+  };
+
+  const markNodeObsolete = (nodeId: number) => {
+    const targetNode = nodes.find(n => n.id === nodeId);
+    if (!targetNode) return;
+
+    // Toggle obsolete state
+    const newObsoleteState = !targetNode.isObsolete;
+    const downstreamNodes = getDownstreamNodes(nodeId, nodes, edges);
+    
+    setNodes(nodes.map(node => ({
+      ...node,
+      // Only update if node is in downstream path
+      isObsolete: downstreamNodes.has(node.id) 
+        ? newObsoleteState  // Set to new state if in downstream path
+        : node.isObsolete   // Keep existing state if not in downstream path
+    })));
+    
+    setEdges(edges.map(edge => ({
+      ...edge,
+      // Update if either source or target is in downstream path
+      isObsolete: (downstreamNodes.has(edge.source) || downstreamNodes.has(edge.target))
+        ? newObsoleteState  // Set to new state if connected to downstream path
+        : edge.isObsolete   // Keep existing state if not connected
+    })));
+  };
+
   return (
     <div className="flex h-full w-full bg-gray-50">
       {/* Main Graph Area (2/3) */}
@@ -201,6 +247,7 @@ export default function ResearchPlanner() {
             onEdgeDelete={deleteEdge}
             onEdgeCreate={handleEdgeCreate}
             onNodeDragEnd={handleNodeDragEnd}
+            onMarkObsolete={markNodeObsolete}
           />
         </div>
 

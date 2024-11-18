@@ -4,6 +4,7 @@ export interface GraphNode {
     description: string;
     x: number;
     y: number;
+    isObsolete: boolean;
     files?: FileAttachment[];
   }
   
