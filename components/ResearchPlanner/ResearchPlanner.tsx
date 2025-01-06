@@ -14,6 +14,7 @@ export default function ResearchPlanner() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [newItemTitle, setNewItemTitle] = useState('');
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
+  const [selectedNodes, setSelectedNodes] = useState<Set<number>>(new Set());
   const [selectedEdge, setSelectedEdge] = useState<number | null>(null);
   const [editingNode, setEditingNode] = useState<GraphNode | null>(null);
   const [editingEdge, setEditingEdge] = useState<Edge | null>(null);
@@ -22,9 +23,23 @@ export default function ResearchPlanner() {
   const [tempDescription, setTempDescription] = useState('');
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   const [edgeStart, setEdgeStart] = useState<number | null>(null);
+  const [nextId, setNextId] = useState<number>(1);
+
+  // New autocomplete states
+  const [isAutocompleteModeActive, setAutocompleteModeActive] = useState(false);
+  const [autocompleteMode, setAutocompleteMode] = useState<'start' | 'goal' | null>(null);
+  const [selectedStartNodes, setSelectedStartNodes] = useState<number[]>([]);
+  const [selectedGoalNodes, setSelectedGoalNodes] = useState<number[]>([]);
+  const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
 
   const { arrangeNodes, getNewNodePosition } = useLayoutManager();
   const { saveGraph, loadGraph, saveToFile, loadFromFile } = useGraphPersistence();
+
+  const saveGraphState = useCallback(() => {
+    if (nodes.length > 0 || edges.length > 0) {
+      saveGraph(nodes, edges);
+    }
+  }, [nodes, edges, saveGraph]);
 
   useEffect(() => {
     const savedData = loadGraph();
@@ -32,21 +47,74 @@ export default function ResearchPlanner() {
       console.log('Loaded nodes:', savedData.nodes);
       setNodes(savedData.nodes);
       setEdges(savedData.edges);
+      
+      // Set nextId to highest existing ID + 1
+      const maxNodeId = Math.max(...savedData.nodes.map(n => n.id));
+      const maxEdgeId = Math.max(...savedData.edges.map(e => e.id));
+      setNextId(Math.max(maxNodeId, maxEdgeId) + 1);
+
+      // If there's a selected node, set its description
+      if (selectedNode !== null) {
+        const node = savedData.nodes.find(n => n.id === selectedNode);
+        if (node) {
+          console.log('Setting description for selected node:', node.description);
+          setTempDescription(node.description || '');
+        }
+      }
     }
-  }, [loadGraph]);
-  
+  }, [loadGraph, selectedNode]);
+
+  // Add initial mount effect
+  useEffect(() => {
+    const savedData = loadGraph();
+    if (savedData && savedData.nodes.length > 0) {
+      // If there's a selected node, set its description
+      if (selectedNode !== null) {
+        const node = savedData.nodes.find(n => n.id === selectedNode);
+        if (node) {
+          console.log('Initial mount: Setting description for selected node:', node.description);
+          setTempDescription(node.description || '');
+        }
+      }
+    }
+  }, []); // Only run once on mount
+
+  // Add a dedicated effect for description sync
+  useEffect(() => {
+    if (selectedNode !== null) {
+      const node = nodes.find(n => n.id === selectedNode);
+      if (node) {
+        console.log('Syncing description for selected node:', node.description);
+        setTempDescription(node.description || '');
+      }
+    } else if (selectedEdge !== null) {
+      const edge = edges.find(e => e.id === selectedEdge);
+      if (edge) {
+        console.log('Syncing description for selected edge:', edge.description);
+        setTempDescription(edge.description || '');
+      }
+    }
+  }, [selectedNode, selectedEdge, nodes, edges]);
+
+  // Restore general save effect
   useEffect(() => {
     if (nodes.length > 0 || edges.length > 0) {
       saveGraph(nodes, edges);
     }
   }, [nodes, edges, saveGraph]);
 
+  const getNextId = useCallback(() => {
+    setNextId(prev => prev + 1);
+    return nextId;
+  }, [nextId]);
+
   const addNode = () => {
     if (!newItemTitle.trim()) return;
     
     const position = getNewNodePosition(nodes, selectedNode || undefined);
+    const id = getNextId();
     const newNode: GraphNode = {
-      id: nodes.length + 1,
+      id,
       title: newItemTitle,
       x: position.x,
       y: position.y,
@@ -54,27 +122,72 @@ export default function ResearchPlanner() {
       isObsolete: false
     };
 
-    setNodes([...nodes, newNode]);
+    setNodes(prevNodes => [...prevNodes, newNode]);
     setNewItemTitle('');
   };
 
-  const deleteNode = (nodeId: number) => {
-    setNodes(nodes.filter(node => node.id !== nodeId));
-    setEdges(edges.filter(edge => 
-      edge.source !== nodeId && edge.target !== nodeId
-    ));
-  };
+  const handleNodeDelete = useCallback((id: number) => {
+    setNodes(prevNodes => {
+      const newNodes = prevNodes.filter(node => node.id !== id);
+      setEdges(prevEdges => {
+        const newEdges = prevEdges.filter(edge => edge.source !== id && edge.target !== id);
+        // Save the new state immediately
+        saveGraph(newNodes, newEdges);
+        return newEdges;
+      });
+      return newNodes;
+    });
+    setSelectedNode(null);
+    setSelectedNodes(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(id);
+      return newSet;
+    });
+  }, [saveGraph]);
 
-  const handleNodeClick = (node: GraphNode) => {
+  const handleNodeClick = useCallback((node: GraphNode) => {
+    if (isAutocompleteModeActive) {
+      if (autocompleteMode === 'start') {
+        setSelectedStartNodes([node.id]); // For now, only allow one start node
+        setAutocompleteMode('goal');
+      } else if (autocompleteMode === 'goal') {
+        setSelectedGoalNodes([node.id]); // For now, only allow one goal node
+      }
+      return;
+    }
+
     setEditingEdge(null);
     setSelectedEdge(null);
     setSelectedNode(node.id);
-    const currentNode = nodes.find(n => n.id === node.id);
-    if (currentNode) {
-      console.log('Node clicked, description:', currentNode.description);
-      setTempDescription(currentNode.description || '');
+    setSelectedNodes(new Set([node.id]));
+    setTempDescription(node.description || '');
+  }, [isAutocompleteModeActive, autocompleteMode]);
+
+  const handleMultiSelect = useCallback((nodeIds: number[]) => {
+    setSelectedNodes(new Set(nodeIds));
+    setSelectedNode(nodeIds[nodeIds.length - 1] || null);
+    setSelectedEdge(null);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' && selectedNodes.size > 0) {
+        Array.from(selectedNodes).forEach(nodeId => {
+          handleNodeDelete(nodeId);
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNodes, handleNodeDelete]);
+
+  // Add effect to watch for goal node selection
+  useEffect(() => {
+    if (selectedGoalNodes.length > 0 && autocompleteMode === 'goal') {
+      handleAutocompleteGenerate();
     }
-  };
+  }, [selectedGoalNodes]);
 
   const handleEditNode = (node: GraphNode) => {
     setEditingNode(node);
@@ -105,7 +218,7 @@ export default function ResearchPlanner() {
       setEdgeStart(nodeId);
     } else if (edgeStart !== nodeId) {
       const newEdge: Edge = {
-        id: edges.length + 1,
+        id: getNextId(),
         source: edgeStart,
         target: nodeId,
         title: '',
@@ -129,22 +242,33 @@ export default function ResearchPlanner() {
   };
 
   const handleDescriptionChange = (value: string) => {
+    console.log('Description changed:', value);
     setTempDescription(value);
     
     if (selectedNode !== null) {
-      const updatedNodes = nodes.map(node => 
-        node.id === selectedNode 
-          ? { ...node, description: value }
-          : node
-      );
-      setNodes(updatedNodes);
+      console.log('Updating node description:', selectedNode, value);
+      setNodes(prevNodes => {
+        const updatedNodes = prevNodes.map(node => 
+          node.id === selectedNode 
+            ? { ...node, description: value }
+            : node
+        );
+        // Save immediately after updating description
+        saveGraph(updatedNodes, edges);
+        return updatedNodes;
+      });
     } else if (selectedEdge !== null) {
-      const updatedEdges = edges.map(edge => 
-        edge.id === selectedEdge
-          ? { ...edge, description: value }
-          : edge
-      );
-      setEdges(updatedEdges);
+      console.log('Updating edge description:', selectedEdge, value);
+      setEdges(prevEdges => {
+        const updatedEdges = prevEdges.map(edge => 
+          edge.id === selectedEdge
+            ? { ...edge, description: value }
+            : edge
+        );
+        // Save immediately after updating description
+        saveGraph(nodes, updatedEdges);
+        return updatedEdges;
+      });
     }
   };
 
@@ -221,6 +345,111 @@ export default function ResearchPlanner() {
     })));
   };
 
+  // New autocomplete handlers
+  const handleAutocompleteToggle = () => {
+    if (isAutocompleteModeActive) {
+      // Reset all autocomplete states
+      setAutocompleteModeActive(false);
+      setAutocompleteMode(null);
+      setSelectedStartNodes([]);
+      setSelectedGoalNodes([]);
+    } else {
+      setAutocompleteModeActive(true);
+      setAutocompleteMode('start');
+    }
+  };
+
+  const calculateIntermediatePosition = (
+    startNode: GraphNode,
+    goalNode: GraphNode,
+    index: number,
+    totalSteps: number
+  ) => {
+    const midpointX = (startNode.x + goalNode.x) / 2;
+    const startY = Math.min(startNode.y, goalNode.y);
+    const endY = Math.max(startNode.y, goalNode.y);
+    const stepSize = (endY - startY) / (totalSteps + 1);
+    
+    return {
+      x: midpointX,
+      y: startY + (stepSize * (index + 1))
+    };
+  };
+
+  const handleAutocompleteGenerate = async () => {
+    if (selectedStartNodes.length === 0 || selectedGoalNodes.length === 0) return;
+
+    setIsAutocompleteLoading(true);
+    try {
+      const startNode = nodes.find(n => n.id === selectedStartNodes[0])!;
+      const goalNode = nodes.find(n => n.id === selectedGoalNodes[0])!;
+
+      const response = await fetch('/api/autocomplete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startNodes: [{ id: startNode.id, title: startNode.title, description: startNode.description }],
+          goalNodes: [{ id: goalNode.id, title: goalNode.title, description: goalNode.description }]
+        })
+      });
+
+      const data = await response.json();
+      
+      // Create new nodes with positions
+      const newNodes = data.map((step: any, index: number) => ({
+        id: getNextId(),
+        title: step.title,
+        description: step.markdown,
+        ...calculateIntermediatePosition(startNode, goalNode, index, data.length)
+      }));
+
+      // Create edges
+      const newEdges = [];
+      newEdges.push({ 
+        id: getNextId(),
+        source: startNode.id, 
+        target: newNodes[0].id,
+        title: '',
+        description: '',
+        isPlanned: true,
+        isObsolete: false
+      });
+
+      for (let i = 0; i < newNodes.length - 1; i++) {
+        newEdges.push({ 
+          id: getNextId(),
+          source: newNodes[i].id, 
+          target: newNodes[i + 1].id,
+          title: '',
+          description: '',
+          isPlanned: true,
+          isObsolete: false
+        });
+      }
+
+      newEdges.push({ 
+        id: getNextId(),
+        source: newNodes[newNodes.length - 1].id, 
+        target: goalNode.id,
+        title: '',
+        description: '',
+        isPlanned: true,
+        isObsolete: false
+      });
+
+      setNodes([...nodes, ...newNodes]);
+      setEdges([...edges, ...newEdges]);
+    } catch (error) {
+      console.error('Error generating autocomplete:', error);
+    } finally {
+      setIsAutocompleteLoading(false);
+      setAutocompleteModeActive(false);
+      setAutocompleteMode(null);
+      setSelectedStartNodes([]);
+      setSelectedGoalNodes([]);
+    }
+  };
+
   return (
     <div className="flex h-full w-full bg-gray-50">
       {/* Main Graph Area (2/3) */}
@@ -231,6 +460,10 @@ export default function ResearchPlanner() {
           onAddNode={addNode}
           isCreatingEdge={isCreatingEdge}
           onToggleEdgeCreate={handleToggleEdgeCreate}
+          isAutocompleteModeActive={isAutocompleteModeActive}
+          onToggleAutocomplete={handleAutocompleteToggle}
+          autocompleteMode={autocompleteMode}
+          isAutocompleteLoading={isAutocompleteLoading}
         />
         
         <div className="flex-1 h-0">
@@ -242,12 +475,17 @@ export default function ResearchPlanner() {
             edgeStart={edgeStart}
             onNodeClick={handleNodeClick}
             onNodeEdit={handleEditNode}
-            onNodeDelete={deleteNode}
+            onNodeDelete={handleNodeDelete}
             onEdgeEdit={handleEditEdge}
             onEdgeDelete={deleteEdge}
             onEdgeCreate={handleEdgeCreate}
             onNodeDragEnd={handleNodeDragEnd}
             onMarkObsolete={markNodeObsolete}
+            selectedStartNodes={selectedStartNodes}
+            selectedGoalNodes={selectedGoalNodes}
+            isAutocompleteModeActive={isAutocompleteModeActive}
+            selectedNodes={selectedNodes}
+            onMultiSelect={handleMultiSelect}
           />
         </div>
 

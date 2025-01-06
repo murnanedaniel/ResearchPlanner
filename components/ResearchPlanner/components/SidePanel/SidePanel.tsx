@@ -21,12 +21,10 @@ export function SidePanel({
   onTitleChange
 }: SidePanelProps) {
   const title = selectedNode?.title || selectedEdge?.title || '';
-  const editorKey = selectedNode ? `node-${selectedNode.id}` : selectedEdge?.id ? `edge-${selectedEdge.id}` : 'no-selection';
 
   return (
     <div className="w-1/3 h-full border-l p-4 bg-white flex flex-col">
       <Input
-        key={`title-${editorKey}`}
         value={title}
         onChange={(e) => onTitleChange(e.target.value)}
         placeholder={selectedNode ? "Node title" : "Edge title"}
@@ -34,7 +32,7 @@ export function SidePanel({
       />
 
       <MDXEditor
-        key={editorKey}
+        key={selectedNode?.id || selectedEdge?.id || 'no-selection'}
         markdown={description}
         onChange={onDescriptionChange}
         plugins={[

@@ -24,3 +24,8 @@ export interface GraphNode {
     isPlanned: boolean;
     isObsolete: boolean;
   }
+  
+  export interface SelectionBox {
+    start: { x: number; y: number };
+    current: { x: number; y: number };
+  }

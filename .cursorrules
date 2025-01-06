@@ -1,0 +1,210 @@
+# ResearchGraph Project Plans and Descriptions
+
+## Overall
+
+This is a Research Planning application built with Next.js that allows users to create, manage, and visualize research nodes and their connections in a graph-like interface.
+
+### Core Components
+
+1. **Main Component (ResearchPlanner)**
+   - Orchestrates the entire application
+   - Manages node and edge states
+   - Handles selection states
+   - Controls graph persistence
+   - Manages node/edge creation and deletion
+   - Controls layout management
+
+2. **Visual Components**
+   - **NodeGraph**: Central visualization with interactive nodes, directional edges, zoom/pan controls
+   - **SidePanel**: Contextual editor for node/edge details with markdown support
+   - **Toolbar**: Controls for adding nodes and managing graph state
+
+### Key Features
+
+1. **Node Management**
+   - Create nodes with titles and descriptions
+   - Drag-and-drop repositioning
+   - Obsolescence marking with downstream effects
+   - Double-click editing
+
+2. **Edge Management**
+   - Interactive edge creation
+   - Planned/obsolete status tracking
+   - Directional relationships
+   - Auto-scaling edge labels
+
+3. **Graph Persistence**
+   - Local storage auto-saving
+   - File export/import
+   - State management for undo/redo
+
+4. **Layout System**
+   - Automatic node positioning
+   - Relative positioning
+   - Zoom and pan controls
+   - Responsive text scaling
+
+5. **State Management**
+   - React useState/useEffect implementation
+   - Selection management
+   - Edge creation states
+   - Persistence synchronization
+
+6. **AI Integration**
+    - Basic selection and UI implementation complete
+    - OpenAI API integration with GPT-4
+    - Start/Goal node selection system
+    - Intermediate node positioning
+    - Node generation and placement
+    - Comprehensive test coverage
+    - Currently implementing:
+        - Context-aware suggestions
+        - Enhanced UX features
+
+### User Flow
+1. Create nodes with titles
+2. Connect nodes with directional edges
+3. Add detailed descriptions to nodes/edges
+4. Auto-save to local storage
+5. Export/import graph data
+6. Mark nodes as obsolete
+7. Navigate with zoom/pan controls
+
+## **ResearchGraph Autocomplete Feature**
+
+The **Autocomplete** feature in ResearchGraph lets users select one or more **start** node(s) and one or more **goal** node(s), and then automatically generate a sequence of intermediate nodes and edges to bridge the gap between those points. This feature leverages OpenAI’s API to expand an existing research plan in a way that feels natural, context-aware, and iterative. Below is a thorough description of how it works, along with a concrete example.
+
+---
+
+### **Feature Description**
+
+1. **Select Start & Goal Nodes**  
+   - The user indicates which node(s) they want to begin from (e.g., “Set up environment”) and which node(s) represent an end state (e.g., “Publish findings”).
+   - This is done via the current UI by selecting or highlighting nodes in the graph.
+
+2. **Trigger the Autocomplete**  
+   - A button or command (e.g., “Autocomplete Graph”) sends a POST request to a Flask endpoint, `/autocomplete_graph`.
+   - The request includes the graph’s JSON representation (nodes, edges, user-provided markdown), plus the IDs of the selected start/goal nodes.
+
+3. **Prompt Construction & AI Call**  
+   - The Flask backend constructs a prompt summarizing the user’s current research plan, the known dependencies (edges), and the intended start/goal points.
+   - The data (in JSON format) is embedded into the prompt to ensure the AI has contextual details.  
+   - The AI service (e.g., `OpenAIAutocompleteService`) calls the OpenAI API in Chat or Completion mode, setting appropriate parameters (`model`, `temperature`, etc.).
+
+4. **Receiving the AI Response**  
+   - The OpenAI API returns an expanded set of **nodes** and **edges** (plus optional markdown or notes).
+   - The Flask code parses the AI’s JSON output and merges it with the current session’s graph.
+
+5. **UI Update**  
+   - The updated graph is returned to the front-end.  
+   - The UI redraws the graph, highlighting newly added nodes/edges for clarity.
+
+6. **Iterative Refinement**  
+   - The user can refine the new plan by editing or deleting AI-generated nodes and edges, or by requesting further expansions (e.g., “Please add more detail about the data validation step”).
+
+---
+
+### **Data Format**
+
+Although variations are possible, a typical JSON schema for the graph might look like:
+
+\```
+{
+  "nodes": [
+    {
+      "id": "node_1",
+      "title": "Setup Environment",
+      "markdown": "Install dependencies, configure local dev."
+    },
+    {
+      "id": "node_2",
+      "title": "Publish Findings",
+      "markdown": "Finalize the paper and release code."
+    }
+  ],
+  "edges": [
+    {
+      "from": "node_1",
+      "to": "node_2",
+      "markdown": "Main workflow"
+    }
+  ],
+  "startNodes": ["node_1"],
+  "goalNodes": ["node_2"]
+}
+\```
+
+The Autocomplete feature augments this structure by injecting new nodes and edges between the defined start and goal nodes.
+
+---
+
+### **Example: ML-Based Collider Project**
+
+Below is a practical walk-through illustrating how the feature might be used for a hypothetical physics experiment that employs machine learning to detect anomalous collider events.
+
+1. **Existing Graph**  
+   - **Node A (Start)**: “Ingest Raw Collider Data”  
+   - **Node Z (Goal)**: “Demonstrate Anomaly Detection on HPC”  
+   - One direct edge from A to Z (no intermediate steps yet).
+
+2. **Autocomplete Request**  
+   - The user clicks **“Autocomplete Graph”**, with “Ingest Raw Collider Data” as the start node, and “Demonstrate Anomaly Detection on HPC” as the goal node.
+   - The UI sends the current graph JSON to `/autocomplete_graph`.
+
+3. **AI Response**  
+   - The AI proposes several new nodes/edges. For example:
+     \```
+     {
+       "nodes": [
+         { "id": "node_B", "title": "Data Cleaning & Labeling", "markdown": "Scripts for noise filtering, labeling known events" },
+         { "id": "node_C", "title": "Local ML Prototype", "markdown": "Train a small-scale model locally to confirm feasibility" },
+         { "id": "node_D", "title": "Hyperparameter Tuning", "markdown": "Systematically adjust learning rates, batch sizes, etc." }
+       ],
+       "edges": [
+         { "from": "node_A", "to": "node_B", "markdown": "Depends on raw data ingestion" },
+         { "from": "node_B", "to": "node_C", "markdown": "Clean, labeled data needed for local training" },
+         { "from": "node_C", "to": "node_D", "markdown": "Tune model prior to HPC run" },
+         { "from": "node_D", "to": "node_Z", "markdown": "Final HPC demonstration" }
+       ]
+     }
+     \```
+   - The backend merges these nodes and edges into the existing graph, preserving ID uniqueness.
+
+4. **Updated Graph Display**  
+   - The front-end receives the merged graph structure, re-renders the UI, and highlights the newly added nodes B, C, and D (plus relevant edges).
+
+5. **Refinement**  
+   - The user notices the AI missed a step for HPC resource allocation, so they ask the system to refine. A new request is made:
+     \```
+     "prompt": "Add a step for HPC environment configuration before the final demonstration."
+     \```
+   - The AI returns a new node E (“HPC Environment Setup”), which is inserted before node D → node Z.
+
+6. **Final Workflow**  
+   - The user sees a coherent plan: 
+     1. Ingest Raw Data →  
+     2. Data Cleaning & Labeling →  
+     3. Local ML Prototype →  
+     4. HPC Environment Setup →  
+     5. Hyperparameter Tuning →  
+     6. Demonstrate Anomaly Detection on HPC  
+
+---
+
+### **Benefits & Outcomes**
+
+- **Time Saver**: Automatically surfaces plausible research tasks without extensive brainstorming.  
+- **Consistency**: Ensures all crucial steps between start and goal nodes are logically connected.  
+- **Guided Exploration**: Users can refine or pivot as new requirements emerge (e.g., HPC scheduling delays).  
+- **Collaboration-Ready**: Multiple team members can review, modify, and annotate new nodes.
+
+---
+
+### **Summary**
+
+This Autocomplete feature streamlines the creation of structured research plans by:
+1. Taking your **existing** nodes and edges as context,  
+2. Generating a **sequence** of intermediate tasks, and  
+3. Allowing **iterative** refinement so you can reshape the plan as your project evolves.
+
+Researchers can thus move swiftly from vague objectives to a clear, actionable project blueprint. 

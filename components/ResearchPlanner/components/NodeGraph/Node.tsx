@@ -18,6 +18,10 @@ interface NodeProps {
     onEdgeCreate: (id: number) => void;
     onDragEnd: (id: number, x: number, y: number) => void;
     onMarkObsolete: (id: number) => void;
+    isStartNode: boolean;
+    isGoalNode: boolean;
+    isAutocompleteModeActive: boolean;
+    isMultiSelected?: boolean;
 }
 
 export function Node({
@@ -30,7 +34,11 @@ export function Node({
     onNodeDelete,
     onEdgeCreate,
     onDragEnd,
-    onMarkObsolete
+    onMarkObsolete,
+    isStartNode,
+    isGoalNode,
+    isAutocompleteModeActive,
+    isMultiSelected
 }: NodeProps) {
     const dragStartPos = useRef({ x: 0, y: 0 });
     const transformContext = useTransformContext();
@@ -70,10 +78,13 @@ export function Node({
         <div
             className={`absolute cursor-pointer flex items-center justify-center
                 rounded-full border-2 border-slate-300
-                ${isSelected ? 'ring-2 ring-blue-500' : ''}
+                ${isSelected || isMultiSelected ? 'ring-2 ring-blue-500' : ''}
                 ${isCreatingEdge ? 'hover:ring-2 hover:ring-green-500' : ''}
                 ${isEdgeStart ? 'ring-2 ring-green-500' : ''}
                 ${node.isObsolete ? 'opacity-50' : ''}
+                ${isStartNode ? 'ring-2 ring-emerald-500' : ''}
+                ${isGoalNode ? 'ring-2 ring-blue-500' : ''}
+                ${isAutocompleteModeActive ? 'hover:ring-2 hover:ring-purple-500' : ''}
                 bg-white shadow-md group hover:border-slate-400 transition-colors`}
             style={{
                 left: node.x,
@@ -92,6 +103,7 @@ export function Node({
                         e.stopPropagation();
                         onMarkObsolete(node.id);
                     }}
+                    aria-label="Mark as obsolete"
                 >
                     <Ban className="h-3 w-3" />
                 </button>
@@ -101,6 +113,7 @@ export function Node({
                         e.stopPropagation();
                         onNodeDelete(node.id);
                     }}
+                    aria-label="Delete node"
                 >
                     <X className="h-3 w-3" />
                 </button>
