@@ -2,7 +2,20 @@
 
 import React, { useEffect, useState } from 'react';
 import { GraphNode, Edge } from '../../types';
-import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, markdownShortcutPlugin } from '@mdxeditor/editor';
+import { 
+  MDXEditor, 
+  headingsPlugin, 
+  listsPlugin, 
+  quotePlugin, 
+  markdownShortcutPlugin,
+  tablePlugin,
+  thematicBreakPlugin,
+  linkPlugin,
+  imagePlugin,
+  frontmatterPlugin,
+  codeBlockPlugin,
+  diffSourcePlugin
+} from '@mdxeditor/editor';
 import { Input } from "@/components/ui/input";
 
 interface SidePanelProps {
@@ -37,11 +50,42 @@ export function SidePanel({
         onChange={onDescriptionChange}
         plugins={[
           headingsPlugin(),
-          listsPlugin(),
+          listsPlugin({
+            checkboxClassName: 'form-checkbox h-4 w-4 text-blue-600',
+            enableCheckboxes: true,
+            syntax: {
+              task: true,
+              bullet: true,
+              ordered: true
+            }
+          }),
           quotePlugin(),
-          markdownShortcutPlugin()
+          markdownShortcutPlugin({
+            shortcuts: {
+              table: true,
+              thematicBreak: true,
+              bold: true,
+              italic: true,
+              link: true,
+              image: true,
+              list: {
+                unordered: true,
+                ordered: true,
+                checklist: true
+              }
+            }
+          }),
+          tablePlugin(),
+          thematicBreakPlugin(),
+          linkPlugin(),
+          imagePlugin(),
+          frontmatterPlugin(),
+          codeBlockPlugin({
+            defaultCodeBlockLanguage: 'typescript'
+          }),
+          diffSourcePlugin()
         ]}
-        contentEditableClassName="min-h-[200px] p-4 focus:outline-none prose prose-sm max-w-none"
+        contentEditableClassName="min-h-[200px] p-4 focus:outline-none prose prose-sm max-w-none font-mono"
       />
     </div>
   );

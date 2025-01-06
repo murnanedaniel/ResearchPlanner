@@ -1,5 +1,13 @@
 # ResearchGraph Project Plans and Descriptions
 
+## Documenting work
+
+Very important: Document all work in the .logs folder. For example, these files are already in the .logs folder:
+- logs/SUBGRAPH.md
+- logs/PROGRESS.md
+- logs/REFACTOR.md
+- logs/first_feature_set.md
+
 ## Overall
 
 This is a Research Planning application built with Next.js that allows users to create, manage, and visualize research nodes and their connections in a graph-like interface.
@@ -51,24 +59,41 @@ This is a Research Planning application built with Next.js that allows users to 
    - Persistence synchronization
 
 6. **AI Integration**
-    - Basic selection and UI implementation complete
-    - OpenAI API integration with GPT-4
+    - Full OpenAI API integration with GPT-4
+    - Context-aware node generation
     - Start/Goal node selection system
-    - Intermediate node positioning
-    - Node generation and placement
+    - Smart intermediate node positioning
+    - Automatic edge creation
     - Comprehensive test coverage
     - Currently implementing:
-        - Context-aware suggestions
-        - Enhanced UX features
+        - Multiple start/goal nodes
+        - Alternative path suggestions
+        - Confidence scores
+        - Step refinement
+
+7. **Subgraph Management**
+    - Create nested node hierarchies
+    - Expand/collapse subgraphs
+    - Automatic subgraph layout
+    - ESC key for quick collapse
+
+8. **Performance & Reliability**
+    - Unique ID generation system
+    - Smart node positioning
+    - Error handling for invalid coordinates
+    - State synchronization improvements
+    - Optimized re-renders
 
 ### User Flow
 1. Create nodes with titles
 2. Connect nodes with directional edges
 3. Add detailed descriptions to nodes/edges
-4. Auto-save to local storage
-5. Export/import graph data
-6. Mark nodes as obsolete
-7. Navigate with zoom/pan controls
+4. Use AI to generate intermediate steps
+5. Auto-save to local storage
+6. Export/import graph data
+7. Mark nodes as obsolete
+8. Navigate with zoom/pan controls
+9. Manage nested subgraphs
 
 ## **ResearchGraph Autocomplete Feature**
 

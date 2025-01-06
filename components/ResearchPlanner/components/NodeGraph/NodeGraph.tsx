@@ -46,6 +46,7 @@ interface NodeGraphProps {
     selectedGoalNodes: number[];
     isAutocompleteModeActive: boolean;
     onMultiSelect: (nodeIds: number[]) => void;
+    expandedNodes: Set<number>;
 }
 
 const WrappedEdgeLabel = ({ text, x1, y1, x2, y2, className = '' }: { 
@@ -113,18 +114,36 @@ function GraphContent({
     selectedGoalNodes,
     isAutocompleteModeActive,
     onMultiSelect,
+    expandedNodes,
     isCtrlPressed
 }: NodeGraphProps & { isCtrlPressed: boolean }) {
     const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
     const transformContext = useTransformContext();
+
+    // Filter visible nodes
+    const visibleNodes = nodes.filter(node => {
+        // Show if node has no parent
+        if (!node.parentId) return true;
+        // Show if parent is expanded
+        return expandedNodes.has(node.parentId);
+    });
+
+    // Filter visible edges - only show edges where both nodes are visible
+    const visibleEdges = edges.filter(edge => {
+        const sourceVisible = visibleNodes.some(node => node.id === edge.source);
+        const targetVisible = visibleNodes.some(node => node.id === edge.target);
+        return sourceVisible && targetVisible;
+    });
 
     const getTransformedPoint = (clientX: number, clientY: number) => {
         const rect = document.querySelector('.graph-container')?.getBoundingClientRect();
         if (!rect || !transformContext?.transformState) return { x: 0, y: 0 };
 
         const { scale, positionX, positionY } = transformContext.transformState;
-        const x = ((clientX - rect.left) / scale) - (positionX / scale);
-        const y = ((clientY - rect.top) / scale) - (positionY / scale);
+        
+        // Adjust for both scale and position in a single step
+        const x = (clientX - rect.left - positionX) / scale;
+        const y = (clientY - rect.top - positionY) / scale;
         
         return { x, y };
     };
@@ -133,24 +152,38 @@ function GraphContent({
         if (!isCtrlPressed) return;
         
         const point = getTransformedPoint(e.clientX, e.clientY);
+        console.log('Mouse down at:', point);
         setSelectionBox({
             start: point,
             current: point
         });
+        console.log('Selection box created:', { start: point, current: point });
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!selectionBox) return;
         
         const point = getTransformedPoint(e.clientX, e.clientY);
-        setSelectionBox(prev => ({
-            start: prev!.start,
-            current: point
-        }));
+        console.log('Mouse move to:', point);
+        setSelectionBox(prev => {
+            const next = {
+                start: prev!.start,
+                current: point
+            };
+            console.log('Selection box updated:', next);
+            console.log('Selection box dimensions:', {
+                x: Math.min(next.start.x, next.current.x),
+                y: Math.min(next.start.y, next.current.y),
+                width: Math.abs(next.current.x - next.start.x),
+                height: Math.abs(next.current.y - next.current.y)
+            });
+            return next;
+        });
     };
 
     const handleMouseUp = () => {
         if (!selectionBox) return;
+        console.log('Final selection box:', selectionBox);
         
         const selectedIds = nodes.filter(node => {
             const { start, current } = selectionBox;
@@ -163,6 +196,8 @@ function GraphContent({
             return node.x >= left && node.x <= right && node.y >= top && node.y <= bottom;
         }).map(node => node.id);
         
+        console.log('Selected nodes:', selectedIds);
+        
         if (selectedIds.length > 0) {
             onMultiSelect(selectedIds);
         }
@@ -172,24 +207,13 @@ function GraphContent({
 
     return (
         <div 
-            className="relative w-[2000px] h-[2000px]"
+            className="relative w-[10000px] h-[10000px]"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
-            {selectionBox && (
-                <div
-                    className="absolute border border-blue-500 bg-blue-100 bg-opacity-20 pointer-events-none"
-                    style={{
-                        left: Math.min(selectionBox.start.x, selectionBox.current.x),
-                        top: Math.min(selectionBox.start.y, selectionBox.current.y),
-                        width: Math.abs(selectionBox.current.x - selectionBox.start.x),
-                        height: Math.abs(selectionBox.current.y - selectionBox.start.y)
-                    }}
-                />
-            )}
-            <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
+            <svg className="absolute top-0 left-0 w-full h-full overflow-visible" style={{ zIndex: 0 }}>
                 <defs>
                     <marker
                         id="arrowhead"
@@ -203,8 +227,33 @@ function GraphContent({
                         <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
                     </marker>
                 </defs>
+
+                {/* Container Border */}
+                <rect
+                    x="0"
+                    y="0"
+                    width="10000"
+                    height="10000"
+                    fill="none"
+                    stroke="#94a3b8"
+                    strokeWidth="2"
+                    strokeDasharray="8 8"
+                />
                 
-                {edges.map(edge => {
+                {/* Selection Box */}
+                {selectionBox && (
+                    <rect
+                        x={Math.min(selectionBox.start.x, selectionBox.current.x)}
+                        y={Math.min(selectionBox.start.y, selectionBox.current.y)}
+                        width={Math.abs(selectionBox.current.x - selectionBox.start.x)}
+                        height={Math.abs(selectionBox.current.y - selectionBox.start.y)}
+                        className="fill-blue-100 fill-opacity-20 stroke-blue-500 stroke-2"
+                        style={{ pointerEvents: 'none' }}
+                        data-testid="selection-box"
+                    />
+                )}
+                
+                {visibleEdges.map(edge => {
                     const sourceNode = nodes.find(n => n.id === edge.source);
                     const targetNode = nodes.find(n => n.id === edge.target);
                     if (!sourceNode || !targetNode) return null;
@@ -290,7 +339,7 @@ function GraphContent({
                 })}
             </svg>
 
-            {nodes.map(node => (
+            {visibleNodes.map(node => (
                 <NodeComponent
                     key={node.id}
                     node={node}
@@ -307,6 +356,15 @@ function GraphContent({
                     isStartNode={selectedStartNodes.includes(node.id)}
                     isGoalNode={selectedGoalNodes.includes(node.id)}
                     isAutocompleteModeActive={isAutocompleteModeActive}
+                    onToggleExpand={(id) => {
+                        const node = nodes.find(n => n.id === id);
+                        if (!node) return;
+                        
+                        // Update both the node's state and call onNodeEdit
+                        const newExpanded = !node.isExpanded;
+                        const updatedNode = { ...node, isExpanded: newExpanded };
+                        onNodeEdit(updatedNode);
+                    }}
                 />
             ))}
         </div>

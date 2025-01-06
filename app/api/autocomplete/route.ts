@@ -8,7 +8,7 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
   try {
-    const { startNodes, goalNodes } = await request.json();
+    const { startNodes, goalNodes, nodes, edges } = await request.json();
 
     if (!startNodes?.length || !goalNodes?.length) {
       return new Response(
@@ -28,8 +28,16 @@ export async function POST(request: Request) {
     Start nodes: ${JSON.stringify(startNodes)}
     Goal nodes: ${JSON.stringify(goalNodes)}
     
+    Current graph structure:
+    {
+      "nodes": ${JSON.stringify(nodes)},
+      "edges": ${JSON.stringify(edges)}
+    }
+    
     Generate a sequence of up to four concrete, actionable steps that bridge the gap between the start and goal nodes.
     Each step should be specific and clearly contribute to reaching the goal.
+    Consider the existing graph structure and ensure the new steps integrate well with any existing research paths.
+    
     Return the response as a JSON array of objects, where each object has a 'title' and 'markdown' field.
     Example format:
     [

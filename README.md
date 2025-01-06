@@ -17,11 +17,15 @@ ResearchGraph is an interactive research planning tool that helps researchers vi
 - Zoom, pan, and navigate large research plans
 - Multi-node selection with Ctrl+drag
 - Bulk operations (delete, mark obsolete)
+- Nested subgraph support with expand/collapse
+- Smart node positioning and spacing
 
 ### 🤖 AI-Powered Planning
 - Auto-generate intermediate research steps
 - Bridge gaps between research milestones
 - Context-aware suggestions based on your existing plan
+- Full graph structure analysis for better suggestions
+- Smart node positioning for generated steps
 - Powered by OpenAI's GPT-4
 
 ### 📝 Rich Content Support
@@ -29,12 +33,16 @@ ResearchGraph is an interactive research planning tool that helps researchers vi
 - File attachments support
 - Obsolescence tracking with downstream effects
 - Auto-scaling text labels
+- Nested node hierarchies
+- ESC key for quick subgraph collapse
 
 ### 💾 Data Management
 - Automatic local saving
 - File export/import functionality
 - Undo/redo support
 - State persistence across sessions
+- Reliable ID generation
+- Error handling for invalid states
 
 ## 🚀 Getting Started
 
@@ -92,20 +100,29 @@ Visit http://localhost:3000 to start using ResearchGraph!
 
 ### Using AI Assistance
 1. Click "Autocomplete" in the toolbar
-2. Select a start node
-3. Select a goal node
-4. AI will generate intermediate steps
+2. Select a start node (highlighted in emerald)
+3. Select a goal node (highlighted in blue)
+4. AI will generate intermediate steps with proper spacing
+5. Edit or refine generated steps as needed
+
+### Managing Subgraphs
+1. Select multiple nodes with Ctrl+drag
+2. Enter a title for the parent node
+3. Click "Collapse to Node" to create a subgraph
+4. Use ESC key to quickly collapse expanded nodes
+5. Click the expand button to view subnodes
 
 ### Multi-Select Operations
 1. Hold Ctrl and drag to select multiple nodes
 2. Use Delete key to remove selected nodes
 3. Selection state persists for bulk operations
+4. Drag any selected node to move the entire selection
 
 ## 🛠 Configuration
 
 ### OpenAI Settings
 Modify \`app/api/autocomplete/route.ts\` to adjust:
-- Model selection (GPT-4, GPT-3.5-turbo)
+- Model selection (GPT-4o-mini)
 - Temperature and other parameters
 - Prompt engineering
 

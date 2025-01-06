@@ -6,6 +6,9 @@ export interface GraphNode {
     y: number;
     isObsolete: boolean;
     files?: FileAttachment[];
+    parentId?: number | null;
+    childNodes?: number[];
+    isExpanded?: boolean;
   }
   
   export interface FileAttachment {
@@ -29,3 +32,5 @@ export interface GraphNode {
     start: { x: number; y: number };
     current: { x: number; y: number };
   }
+  
+  export type NodeClickHandler = (node: GraphNode, event?: React.MouseEvent) => void;

@@ -120,43 +120,34 @@ export function NodeContainer({ id }: { id: number }) {
 
 ## Next Steps
 
-1. **Start with Graph Component**
-   ```typescript
-   // GraphView.tsx
-   function GraphView({ nodes, edges, onNodeSelect }) {
-     return (
-       <div className="graph">
-         {nodes.map(node => (
-           <NodeView
-             key={node.id}
-             {...node}
-             onSelect={() => onNodeSelect(node.id)}
-           />
-         ))}
-       </div>
-     );
-   }
+### 1. State Management Improvements
+- Consider moving to useReducer for complex state updates
+- Implement proper state synchronization for descriptions
+- Add proper state management for undo/redo
+- Consider using Zustand or Redux for global state
 
-   // GraphContainer.tsx
-   function GraphContainer() {
-     const nodes = useSelector(state => state.nodes);
-     const dispatch = useDispatch();
+### 2. Component Refactoring
+- Split ResearchPlanner into smaller components
+- Move autocomplete logic to separate hooks
+- Create dedicated components for node generation UI
+- Improve type safety across components
 
-     const handleNodeSelect = useCallback((id) => {
-       dispatch({ type: 'SELECT_NODE', payload: id });
-     }, []);
+### 3. API Integration
+- Add proper error boundaries for API calls
+- Implement retry logic for failed requests
+- Add request cancellation for abandoned operations
+- Improve error messaging and recovery
 
-     return (
-       <GraphView
-         nodes={nodes}
-         onNodeSelect={handleNodeSelect}
-       />
-     );
-   }
-   ```
+### 4. Performance Optimizations
+- Implement virtualization for large graphs
+- Add proper memoization for expensive calculations
+- Optimize re-renders with useMemo and useCallback
+- Add proper loading states and suspense boundaries
 
-2. **Then Node Component**
-3. **Then Edge Component**
-4. **Finally Toolbar and SidePanel**
+### 5. Testing Improvements
+- Add integration tests for autocomplete flow
+- Add unit tests for node positioning logic
+- Add visual regression tests for node rendering
+- Improve test coverage for edge cases
 
-Would you like to start implementing this pattern with a specific component? 
+Would you like to start implementing any of these improvements? 

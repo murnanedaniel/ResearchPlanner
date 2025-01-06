@@ -23,7 +23,8 @@ export default function ResearchPlanner() {
   const [tempDescription, setTempDescription] = useState('');
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   const [edgeStart, setEdgeStart] = useState<number | null>(null);
-  const [nextId, setNextId] = useState<number>(1);
+  const nextIdRef = useRef(1);
+  const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
 
   // New autocomplete states
   const [isAutocompleteModeActive, setAutocompleteModeActive] = useState(false);
@@ -35,11 +36,23 @@ export default function ResearchPlanner() {
   const { arrangeNodes, getNewNodePosition } = useLayoutManager();
   const { saveGraph, loadGraph, saveToFile, loadFromFile } = useGraphPersistence();
 
+  // Add ref for tracking latest selection
+  const latestSelectionRef = useRef<{
+    node: number | null;
+    edge: number | null;
+  }>({ node: null, edge: null });
+
   const saveGraphState = useCallback(() => {
     if (nodes.length > 0 || edges.length > 0) {
       saveGraph(nodes, edges);
     }
   }, [nodes, edges, saveGraph]);
+
+  const getNextId = useCallback(() => {
+    const id = nextIdRef.current;
+    nextIdRef.current += 1;
+    return id;
+  }, []); // No dependencies needed
 
   useEffect(() => {
     const savedData = loadGraph();
@@ -48,21 +61,12 @@ export default function ResearchPlanner() {
       setNodes(savedData.nodes);
       setEdges(savedData.edges);
       
-      // Set nextId to highest existing ID + 1
+      // Set nextIdRef to highest existing ID + 1
       const maxNodeId = Math.max(...savedData.nodes.map(n => n.id));
-      const maxEdgeId = Math.max(...savedData.edges.map(e => e.id));
-      setNextId(Math.max(maxNodeId, maxEdgeId) + 1);
-
-      // If there's a selected node, set its description
-      if (selectedNode !== null) {
-        const node = savedData.nodes.find(n => n.id === selectedNode);
-        if (node) {
-          console.log('Setting description for selected node:', node.description);
-          setTempDescription(node.description || '');
-        }
-      }
+      const maxEdgeId = savedData.edges.length > 0 ? Math.max(...savedData.edges.map(e => e.id)) : 0;
+      nextIdRef.current = Math.max(maxNodeId, maxEdgeId) + 1;
     }
-  }, [loadGraph, selectedNode]);
+  }, [loadGraph]);
 
   // Add initial mount effect
   useEffect(() => {
@@ -79,22 +83,24 @@ export default function ResearchPlanner() {
     }
   }, []); // Only run once on mount
 
-  // Add a dedicated effect for description sync
+  // Modify the description sync effect to use the ref
   useEffect(() => {
-    if (selectedNode !== null) {
-      const node = nodes.find(n => n.id === selectedNode);
+    const { node: selectedNodeId, edge: selectedEdgeId } = latestSelectionRef.current;
+    
+    if (selectedNodeId !== null) {
+      const node = nodes.find(n => n.id === selectedNodeId);
       if (node) {
         console.log('Syncing description for selected node:', node.description);
         setTempDescription(node.description || '');
       }
-    } else if (selectedEdge !== null) {
-      const edge = edges.find(e => e.id === selectedEdge);
+    } else if (selectedEdgeId !== null) {
+      const edge = edges.find(e => e.id === selectedEdgeId);
       if (edge) {
         console.log('Syncing description for selected edge:', edge.description);
         setTempDescription(edge.description || '');
       }
     }
-  }, [selectedNode, selectedEdge, nodes, edges]);
+  }, [nodes, edges]); // Only depend on data changes, not selection changes
 
   // Restore general save effect
   useEffect(() => {
@@ -102,11 +108,6 @@ export default function ResearchPlanner() {
       saveGraph(nodes, edges);
     }
   }, [nodes, edges, saveGraph]);
-
-  const getNextId = useCallback(() => {
-    setNextId(prev => prev + 1);
-    return nextId;
-  }, [nextId]);
 
   const addNode = () => {
     if (!newItemTitle.trim()) return;
@@ -145,23 +146,45 @@ export default function ResearchPlanner() {
     });
   }, [saveGraph]);
 
-  const handleNodeClick = useCallback((node: GraphNode) => {
+  const handleNodeClick = (node: GraphNode, event?: React.MouseEvent) => {
+    if (isCreatingEdge) {
+      handleEdgeCreate(node.id);
+      return;
+    }
+
     if (isAutocompleteModeActive) {
       if (autocompleteMode === 'start') {
-        setSelectedStartNodes([node.id]); // For now, only allow one start node
+        setSelectedStartNodes([node.id]);
         setAutocompleteMode('goal');
       } else if (autocompleteMode === 'goal') {
-        setSelectedGoalNodes([node.id]); // For now, only allow one goal node
+        setSelectedGoalNodes([node.id]);
       }
       return;
     }
 
-    setEditingEdge(null);
-    setSelectedEdge(null);
+    // Handle ctrl-click multi-selection
+    if (event?.ctrlKey) {
+      const newSelectedNodes = new Set(selectedNodes);
+      if (selectedNodes.has(node.id)) {
+        newSelectedNodes.delete(node.id);
+      } else {
+        newSelectedNodes.add(node.id);
+      }
+      setSelectedNodes(newSelectedNodes);
+      return;
+    }
+
+    // Update ref first
+    latestSelectionRef.current = { node: node.id, edge: null };
+    
+    // Update description immediately from the node data
+    setTempDescription(node.description || '');
+    
+    // Then update selection state
     setSelectedNode(node.id);
     setSelectedNodes(new Set([node.id]));
-    setTempDescription(node.description || '');
-  }, [isAutocompleteModeActive, autocompleteMode]);
+    setSelectedEdge(null);
+  };
 
   const handleMultiSelect = useCallback((nodeIds: number[]) => {
     setSelectedNodes(new Set(nodeIds));
@@ -190,27 +213,79 @@ export default function ResearchPlanner() {
   }, [selectedGoalNodes]);
 
   const handleEditNode = (node: GraphNode) => {
-    setEditingNode(node);
-    setTempDescription(node.description);
-    setIsNodeDialogOpen(true);
-  };
+    // If this is an expansion state change
+    if ('isExpanded' in node) {
+      // Update expanded nodes set
+      setExpandedNodes(prev => {
+        const next = new Set(prev);
+        if (node.isExpanded) {
+          next.add(node.id);
+        } else {
+          next.delete(node.id);
+        }
+        return next;
+      });
+    }
 
-  const handleEditEdge = (edge: Edge) => {
-    setEditingNode(null);
-    setSelectedNode(null);
-    setSelectedEdge(edge.id);
-    const currentEdge = edges.find(e => e.id === edge.id);
-    if (currentEdge) {
-      setTempDescription(currentEdge.description || '');
+    // Update the node in the nodes array
+    setNodes(prev => prev.map(n => 
+      n.id === node.id ? { ...n, ...node } : n
+    ));
+
+    // If we're editing in the dialog
+    if (node.description !== undefined) {
+      setEditingNode(node);
+      setTempDescription(node.description);
+      setIsNodeDialogOpen(true);
     }
   };
 
-  const handleNodeDragEnd = (nodeId: number, x: number, y: number) => {
-    setNodes(nodes.map(node => 
-      node.id === nodeId 
-        ? { ...node, x, y }
-        : node
-    ));
+  const handleEditEdge = (edge: Edge) => {
+    // Update ref first
+    latestSelectionRef.current = { node: null, edge: edge.id };
+    
+    // Update description immediately
+    setTempDescription(edge.description || '');
+    
+    // Then update selection state
+    setEditingNode(null);
+    setSelectedNode(null);
+    setSelectedEdge(edge.id);
+  };
+
+  const handleNodeDragEnd = (id: number, newX: number, newY: number, isMultiDrag?: boolean) => {
+    if (isMultiDrag && selectedNodes.size > 1) {
+      // Get the dragged node's original position
+      const draggedNode = nodes.find(n => n.id === id);
+      if (!draggedNode) return;
+
+      // Calculate the movement delta
+      const deltaX = newX - draggedNode.x;
+      const deltaY = newY - draggedNode.y;
+
+      // Update all selected nodes
+      const updatedNodes = nodes.map(node => {
+        if (selectedNodes.has(node.id)) {
+          return {
+            ...node,
+            x: node.x + deltaX,
+            y: node.y + deltaY
+          };
+        }
+        return node;
+      });
+
+      setNodes(updatedNodes);
+    } else {
+      // Single node drag
+      const updatedNodes = nodes.map(node => {
+        if (node.id === id) {
+          return { ...node, x: newX, y: newY };
+        }
+        return node;
+      });
+      setNodes(updatedNodes);
+    }
   };
 
   const handleEdgeCreate = (nodeId: number) => {
@@ -243,7 +318,6 @@ export default function ResearchPlanner() {
 
   const handleDescriptionChange = (value: string) => {
     console.log('Description changed:', value);
-    setTempDescription(value);
     
     if (selectedNode !== null) {
       console.log('Updating node description:', selectedNode, value);
@@ -257,6 +331,7 @@ export default function ResearchPlanner() {
         saveGraph(updatedNodes, edges);
         return updatedNodes;
       });
+      setTempDescription(value);  // Move this after the node update
     } else if (selectedEdge !== null) {
       console.log('Updating edge description:', selectedEdge, value);
       setEdges(prevEdges => {
@@ -269,6 +344,7 @@ export default function ResearchPlanner() {
         saveGraph(nodes, updatedEdges);
         return updatedEdges;
       });
+      setTempDescription(value);  // Move this after the edge update
     }
   };
 
@@ -365,13 +441,26 @@ export default function ResearchPlanner() {
     index: number,
     totalSteps: number
   ) => {
+    // Ensure we have valid coordinates
+    if (!startNode?.x || !startNode?.y || !goalNode?.x || !goalNode?.y) {
+      // Default position if coordinates are missing
+      return {
+        x: 100 + (index * 100),
+        y: 100 + (index * 50)
+      };
+    }
+
+    // Calculate midpoint with horizontal offset
     const midpointX = (startNode.x + goalNode.x) / 2;
     const startY = Math.min(startNode.y, goalNode.y);
     const endY = Math.max(startNode.y, goalNode.y);
     const stepSize = (endY - startY) / (totalSteps + 1);
     
+    // Add horizontal offset based on index
+    const horizontalOffset = (index - (totalSteps - 1) / 2) * 50; // Increased spacing
+    
     return {
-      x: midpointX,
+      x: midpointX + horizontalOffset,
       y: startY + (stepSize * (index + 1))
     };
   };
@@ -389,24 +478,30 @@ export default function ResearchPlanner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           startNodes: [{ id: startNode.id, title: startNode.title, description: startNode.description }],
-          goalNodes: [{ id: goalNode.id, title: goalNode.title, description: goalNode.description }]
+          goalNodes: [{ id: goalNode.id, title: goalNode.title, description: goalNode.description }],
+          nodes: nodes.map(n => ({ id: n.id, title: n.title, description: n.description })),
+          edges: edges.map(e => ({ source: e.source, target: e.target, description: e.description }))
         })
       });
 
       const data = await response.json();
       
       // Create new nodes with positions
-      const newNodes = data.map((step: any, index: number) => ({
-        id: getNextId(),
-        title: step.title,
-        description: step.markdown,
-        ...calculateIntermediatePosition(startNode, goalNode, index, data.length)
-      }));
+      const newNodes = data.map((step: any, index: number) => {
+        const nodeId = getNextId();
+        return {
+          id: nodeId,
+          title: step.title,
+          description: step.markdown,
+          ...calculateIntermediatePosition(startNode, goalNode, index, data.length)
+        };
+      });
 
       // Create edges
       const newEdges = [];
+      const firstEdgeId = getNextId();
       newEdges.push({ 
-        id: getNextId(),
+        id: firstEdgeId,
         source: startNode.id, 
         target: newNodes[0].id,
         title: '',
@@ -416,8 +511,9 @@ export default function ResearchPlanner() {
       });
 
       for (let i = 0; i < newNodes.length - 1; i++) {
+        const edgeId = getNextId();
         newEdges.push({ 
-          id: getNextId(),
+          id: edgeId,
           source: newNodes[i].id, 
           target: newNodes[i + 1].id,
           title: '',
@@ -427,8 +523,9 @@ export default function ResearchPlanner() {
         });
       }
 
+      const lastEdgeId = getNextId();
       newEdges.push({ 
-        id: getNextId(),
+        id: lastEdgeId,
         source: newNodes[newNodes.length - 1].id, 
         target: goalNode.id,
         title: '',
@@ -450,6 +547,109 @@ export default function ResearchPlanner() {
     }
   };
 
+  const handleAddSubnode = () => {
+    if (!selectedNode || !newItemTitle.trim()) return;
+
+    const parentNode = nodes.find(n => n.id === selectedNode);
+    if (!parentNode) return;
+
+    const id = getNextId();
+    const position = getNewNodePosition(nodes, selectedNode);
+    
+    // Create the child node
+    const newNode: GraphNode = {
+      id,
+      title: newItemTitle.trim(),
+      description: '',
+      x: position.x,
+      y: position.y,
+      isObsolete: false,
+      parentId: selectedNode,
+      childNodes: [],
+    };
+
+    // Update the parent node
+    const updatedParent: GraphNode = {
+      ...parentNode,
+      childNodes: [...(parentNode.childNodes || []), id],
+      isExpanded: true,
+    };
+
+    setNodes(prev => [
+      ...prev.filter(n => n.id !== selectedNode),
+      updatedParent,
+      newNode,
+    ]);
+
+    // Expand the parent node
+    setExpandedNodes(prev => new Set(Array.from(prev).concat([selectedNode])));
+    setNewItemTitle('');
+  };
+
+  // Add ESC key handler for collapsing nodes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedNode !== null) {
+        const node = nodes.find(n => n.id === selectedNode);
+        if (node?.childNodes?.length) {
+          // Remove from expanded nodes set
+          setExpandedNodes(prev => {
+            const next = new Set(prev);
+            next.delete(selectedNode);
+            return next;
+          });
+
+          // Update the node's expanded state
+          setNodes(prev => prev.map(n => 
+            n.id === selectedNode 
+              ? { ...n, isExpanded: false }
+              : n
+          ));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNode, nodes]);
+
+  const handleCollapseToNode = () => {
+    if (selectedNodes.size <= 1 || !newItemTitle.trim()) return;
+
+    const selectedNodesList = Array.from(selectedNodes);
+    const selectedNodeObjects = nodes.filter(n => selectedNodes.has(n.id));
+    
+    // Calculate average position of selected nodes
+    const avgX = selectedNodeObjects.reduce((sum, n) => sum + n.x, 0) / selectedNodeObjects.length;
+    const avgY = selectedNodeObjects.reduce((sum, n) => sum + n.y, 0) / selectedNodeObjects.length;
+
+    // Create the parent node
+    const parentNode: GraphNode = {
+      id: getNextId(),
+      title: newItemTitle.trim(),
+      description: '',
+      x: avgX,
+      y: avgY,
+      isObsolete: false,
+      childNodes: selectedNodesList,
+      isExpanded: true,
+    };
+
+    // Update child nodes with parentId
+    const updatedNodes = nodes.map(node => 
+      selectedNodes.has(node.id) 
+        ? { ...node, parentId: parentNode.id }
+        : node
+    );
+
+    // Add the new parent node and update state
+    setNodes([...updatedNodes, parentNode]);
+    setExpandedNodes(prev => new Set([...Array.from(prev), parentNode.id]));
+    setSelectedNodes(new Set([parentNode.id]));
+    setSelectedNode(parentNode.id);
+    setNewItemTitle('');
+  };
+
   return (
     <div className="flex h-full w-full bg-gray-50">
       {/* Main Graph Area (2/3) */}
@@ -458,6 +658,10 @@ export default function ResearchPlanner() {
           nodeTitle={newItemTitle}
           onNodeTitleChange={setNewItemTitle}
           onAddNode={addNode}
+          onAddSubnode={handleAddSubnode}
+          onCollapseToNode={handleCollapseToNode}
+          selectedNodeId={selectedNode}
+          selectedNodes={selectedNodes}
           isCreatingEdge={isCreatingEdge}
           onToggleEdgeCreate={handleToggleEdgeCreate}
           isAutocompleteModeActive={isAutocompleteModeActive}
@@ -486,6 +690,7 @@ export default function ResearchPlanner() {
             isAutocompleteModeActive={isAutocompleteModeActive}
             selectedNodes={selectedNodes}
             onMultiSelect={handleMultiSelect}
+            expandedNodes={expandedNodes}
           />
         </div>
 

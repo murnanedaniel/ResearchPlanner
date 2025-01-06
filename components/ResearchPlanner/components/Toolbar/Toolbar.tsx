@@ -9,6 +9,10 @@ interface ToolbarProps {
   nodeTitle: string;
   onNodeTitleChange: (value: string) => void;
   onAddNode: () => void;
+  onAddSubnode: () => void;
+  onCollapseToNode?: () => void;
+  selectedNodeId: number | null;
+  selectedNodes: Set<number>;
   isCreatingEdge: boolean;
   onToggleEdgeCreate: () => void;
   isAutocompleteModeActive: boolean;
@@ -21,6 +25,10 @@ export function Toolbar({
   nodeTitle,
   onNodeTitleChange,
   onAddNode,
+  onAddSubnode,
+  onCollapseToNode,
+  selectedNodeId,
+  selectedNodes,
   isCreatingEdge,
   onToggleEdgeCreate,
   isAutocompleteModeActive,
@@ -39,6 +47,21 @@ export function Toolbar({
           className="flex-1 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <Button onClick={onAddNode}>Add Node</Button>
+        {selectedNodes.size > 1 ? (
+          <Button 
+            onClick={onCollapseToNode}
+            disabled={!nodeTitle.trim()}
+          >
+            Collapse to Node
+          </Button>
+        ) : (
+          <Button 
+            onClick={onAddSubnode}
+            disabled={!selectedNodeId || !nodeTitle.trim()}
+          >
+            Add Subnode
+          </Button>
+        )}
       </div>
 
       <div className="flex gap-2">
