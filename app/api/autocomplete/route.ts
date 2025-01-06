@@ -40,22 +40,33 @@ export async function POST(request: Request) {
     Generate a sequence of up to four concrete, actionable steps that bridge the gap between the start and goal nodes.
     Each step should be specific and clearly contribute to reaching the goal.
     Consider the existing graph structure and ensure the new steps integrate well with any existing research paths.
-    
-    Return the response as a JSON array of objects, where each object has a 'title' and 'markdown' field.
-    Example format:
-    [
-      {
-        "title": "Literature Review",
-        "markdown": "Conduct a comprehensive review of existing literature..."
-      }
     ]`;
+
+    console.log(prompt);
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are a helpful research planning assistant that generates concrete, actionable steps to bridge gaps in research plans. Always respond with valid JSON arrays containing objects with 'title' and 'markdown' fields."
+          content: `You are a helpful research planning assistant that generates concrete, actionable steps to bridge gaps in research plans. Always respond with the following JSON format:
+{
+"steps":
+[
+  {
+      "title": "Step 1 Title",
+        "markdown": "Step 1 Description"
+    },
+  {
+      "title": "Step 2 Title",
+        "markdown": "Step 2 Description"
+    },
+]
+}
+
+Generate a sequence of up to four concrete, actionable steps that bridge the gap between the start and goal nodes.
+Each step should be specific and clearly contribute to reaching the goal.
+Consider the existing graph structure and ensure the new steps integrate well with any existing research paths.`
         },
         {
           role: "user",
@@ -71,6 +82,7 @@ export async function POST(request: Request) {
     if (!content) {
       throw new Error('No content in OpenAI response');
     }
+    console.log(content);
 
     let parsedResponse;
     try {
