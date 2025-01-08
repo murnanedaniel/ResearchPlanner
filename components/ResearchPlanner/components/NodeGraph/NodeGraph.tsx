@@ -8,6 +8,9 @@ import { TransformWrapper, TransformComponent, useControls, useTransformContext 
 import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScalingText } from '../shared/ScalingText';
+import { TimelineGrid } from './TimelineGrid';
+import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from '../../utils/timeline';
+import type { TimelineConfig } from '../../utils/timeline';
 
 function ZoomControls() {
   const { zoomIn, zoomOut, resetTransform } = useControls();
@@ -41,12 +44,17 @@ interface NodeGraphProps {
     onEdgeEdit: (edge: Edge) => void;
     onEdgeDelete: (id: number) => void;
     onNodeDragEnd: (id: number, x: number, y: number) => void;
+    onNodesDragEnd?: (updates: { id: number; x: number; y: number }[]) => void;
     onMarkObsolete: (id: number) => void;
     selectedStartNodes: number[];
     selectedGoalNodes: number[];
     isAutocompleteModeActive: boolean;
     onMultiSelect: (nodeIds: number[]) => void;
     expandedNodes: Set<number>;
+    onNodeDragOver: (node: GraphNode) => void;
+    onNodeDrop: (sourceId: number, targetId: number) => void;
+    isTimelineActive: boolean;
+    timelineStartDate: Date;
 }
 
 const WrappedEdgeLabel = ({ text, x1, y1, x2, y2, className = '' }: { 
@@ -109,14 +117,21 @@ function GraphContent({
     onEdgeEdit,
     onEdgeDelete,
     onNodeDragEnd,
+    onNodesDragEnd,
     onMarkObsolete,
     selectedStartNodes,
     selectedGoalNodes,
     isAutocompleteModeActive,
     onMultiSelect,
     expandedNodes,
-    isCtrlPressed
-}: NodeGraphProps & { isCtrlPressed: boolean }) {
+    onNodeDragOver,
+    onNodeDrop,
+    isCtrlPressed,
+    isTimelineActive,
+    timelineStartDate,
+    currentScale,
+    transformState
+}: NodeGraphProps & { isCtrlPressed: boolean; currentScale: number; transformState: any }) {
     const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
     const transformContext = useTransformContext();
 
@@ -152,40 +167,29 @@ function GraphContent({
         if (!isCtrlPressed) return;
         
         const point = getTransformedPoint(e.clientX, e.clientY);
-        console.log('Mouse down at:', point);
         setSelectionBox({
             start: point,
             current: point
         });
-        console.log('Selection box created:', { start: point, current: point });
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!selectionBox) return;
         
         const point = getTransformedPoint(e.clientX, e.clientY);
-        console.log('Mouse move to:', point);
         setSelectionBox(prev => {
             const next = {
                 start: prev!.start,
                 current: point
             };
-            console.log('Selection box updated:', next);
-            console.log('Selection box dimensions:', {
-                x: Math.min(next.start.x, next.current.x),
-                y: Math.min(next.start.y, next.current.y),
-                width: Math.abs(next.current.x - next.start.x),
-                height: Math.abs(next.current.y - next.current.y)
-            });
             return next;
         });
     };
 
     const handleMouseUp = () => {
         if (!selectionBox) return;
-        console.log('Final selection box:', selectionBox);
         
-        const selectedIds = nodes.filter(node => {
+        const selectedIds = visibleNodes.filter(node => {
             const { start, current } = selectionBox;
             
             const left = Math.min(start.x, current.x);
@@ -196,8 +200,6 @@ function GraphContent({
             return node.x >= left && node.x <= right && node.y >= top && node.y <= bottom;
         }).map(node => node.id);
         
-        console.log('Selected nodes:', selectedIds);
-        
         if (selectedIds.length > 0) {
             onMultiSelect(selectedIds);
         }
@@ -205,9 +207,85 @@ function GraphContent({
         setSelectionBox(null);
     };
 
+    const handleNodeDragEnd = (id: number, x: number, y: number) => {
+        console.log('Node drag end:', { id, x, y });
+        console.log('Selected nodes:', Array.from(selectedNodes));
+        
+        // Find the dragged node to calculate the delta
+        const draggedNode = nodes.find(n => n.id === id);
+        if (!draggedNode) {
+            console.log('Could not find dragged node:', id);
+            return;
+        }
+
+        console.log('Dragged node:', draggedNode);
+        const deltaX = x - draggedNode.x;
+        const deltaY = y - draggedNode.y;
+        console.log('Delta:', { deltaX, deltaY });
+
+        // If we have multiple nodes selected, move them all
+        if (selectedNodes.has(id) && selectedNodes.size > 1) {
+            console.log('Moving multiple nodes');
+            // Create an array of updates
+            const updates = Array.from(selectedNodes).map(selectedId => {
+                const node = nodes.find(n => n.id === selectedId);
+                if (!node) {
+                    console.log('Could not find selected node:', selectedId);
+                    return null;
+                }
+                
+                console.log('Moving node:', node);
+                let newX = node.x + deltaX;
+                let newY = node.y + deltaY;
+                console.log('New position:', { newX, newY });
+
+                // Snap to grid if timeline is active
+                if (isTimelineActive && transformContext?.transformState) {
+                    const timeScale = getTimelineConfig(currentScale);
+                    const pixelsPerUnit = getPixelsPerUnit(timeScale);
+                    const config: TimelineConfig = {
+                        scale: timeScale,
+                        pixelsPerUnit,
+                        startDate: timelineStartDate
+                    };
+                    newX = snapToGrid(newX, config);
+                    console.log('Snapped X:', newX);
+                }
+
+                return { id: selectedId, x: newX, y: newY };
+            }).filter(update => update !== null) as { id: number; x: number; y: number }[];
+
+            // Use batch update if available
+            if (onNodesDragEnd) {
+                onNodesDragEnd(updates);
+            } else {
+                // Fallback to individual updates
+                updates.forEach(update => {
+                    onNodeDragEnd(update.id, update.x, update.y);
+                });
+            }
+        } else {
+            console.log('Moving single node');
+            // Single node movement
+            if (isTimelineActive && transformContext?.transformState) {
+                const timeScale = getTimelineConfig(currentScale);
+                const pixelsPerUnit = getPixelsPerUnit(timeScale);
+                const config: TimelineConfig = {
+                    scale: timeScale,
+                    pixelsPerUnit,
+                    startDate: timelineStartDate
+                };
+                x = snapToGrid(x, config);
+                console.log('Snapped single node X:', x);
+            }
+            onNodeDragEnd(id, x, y);
+        }
+    };
+
     return (
         <div 
-            className="relative w-[10000px] h-[10000px]"
+            className="relative"
+            style={{ width: `${GRAPH_CONSTANTS.CANVAS_SIZE}px`, height: `${GRAPH_CONSTANTS.CANVAS_SIZE}px` }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -232,13 +310,23 @@ function GraphContent({
                 <rect
                     x="0"
                     y="0"
-                    width="10000"
-                    height="10000"
+                    width={GRAPH_CONSTANTS.CANVAS_SIZE}
+                    height={GRAPH_CONSTANTS.CANVAS_SIZE}
                     fill="none"
                     stroke="#94a3b8"
                     strokeWidth="2"
                     strokeDasharray="8 8"
                 />
+                
+                {/* Timeline Grid */}
+                {isTimelineActive && (
+                    <TimelineGrid
+                        startDate={timelineStartDate}
+                        className="pointer-events-none"
+                        scale={currentScale}
+                        transformState={transformContext?.transformState}
+                    />
+                )}
                 
                 {/* Selection Box */}
                 {selectionBox && (
@@ -279,7 +367,6 @@ function GraphContent({
                             className="cursor-pointer group"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                console.log('Edge clicked:', edge);
                                 onEdgeEdit(edge);
                             }}
                         >
@@ -351,7 +438,7 @@ function GraphContent({
                     onNodeEdit={onNodeEdit}
                     onNodeDelete={onNodeDelete}
                     onEdgeCreate={onEdgeCreate}
-                    onDragEnd={onNodeDragEnd}
+                    onDragEnd={handleNodeDragEnd}
                     onMarkObsolete={onMarkObsolete}
                     isStartNode={selectedStartNodes.includes(node.id)}
                     isGoalNode={selectedGoalNodes.includes(node.id)}
@@ -359,21 +446,49 @@ function GraphContent({
                     onToggleExpand={(id) => {
                         const node = nodes.find(n => n.id === id);
                         if (!node) return;
-                        
-                        // Update both the node's state and call onNodeEdit
                         const newExpanded = !node.isExpanded;
                         const updatedNode = { ...node, isExpanded: newExpanded };
                         onNodeEdit(updatedNode);
                     }}
+                    onDragOver={onNodeDragOver}
+                    onNodeDrop={onNodeDrop}
+                    scale={transformState?.scale || 1}
                 />
             ))}
         </div>
     );
 }
 
-export function NodeGraph(props: NodeGraphProps) {
-    const [initialPosition, setInitialPosition] = useState({ x: 0, y: 0 });
+export function NodeGraph({
+    nodes,
+    edges,
+    selectedNode,
+    selectedNodes,
+    isCreatingEdge,
+    edgeStart,
+    onNodeClick,
+    onNodeEdit,
+    onNodeDelete,
+    onEdgeCreate,
+    onEdgeEdit,
+    onEdgeDelete,
+    onNodeDragEnd,
+    onNodesDragEnd,
+    onMarkObsolete,
+    selectedStartNodes,
+    selectedGoalNodes,
+    isAutocompleteModeActive,
+    onMultiSelect,
+    expandedNodes,
+    onNodeDragOver,
+    onNodeDrop,
+    isTimelineActive,
+    timelineStartDate
+}: NodeGraphProps) {
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+    const [initialPosition, setInitialPosition] = useState({ x: 0, y: 0 });
+    const [currentScale, setCurrentScale] = useState(1);
+    const [transformState, setTransformState] = useState<any>(null);
 
     useEffect(() => {
         setInitialPosition({
@@ -389,9 +504,10 @@ export function NodeGraph(props: NodeGraphProps) {
         const handleKeyUp = (e: KeyboardEvent) => {
             if (e.key === 'Control') setIsCtrlPressed(false);
         };
-        
+
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
+
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
@@ -402,7 +518,7 @@ export function NodeGraph(props: NodeGraphProps) {
         <div className="relative w-full h-full border border-gray-200 rounded-lg graph-container overflow-hidden bg-white shadow-sm">
             <TransformWrapper
                 initialScale={1}
-                minScale={0.1}
+                minScale={0.01}
                 maxScale={2}
                 limitToBounds={false}
                 centerOnInit={true}
@@ -413,12 +529,45 @@ export function NodeGraph(props: NodeGraphProps) {
                     velocityDisabled: true,
                     excluded: ['node-drag-handle']
                 }}
+                onTransformed={(ref, state) => {
+                    // Single source of truth for all transform updates
+                    setCurrentScale(state.scale);
+                    setTransformState(state);
+                }}
             >
                 <TransformComponent
                     wrapperClass="w-full h-full"
                     contentClass="w-full h-full relative"
                 >
-                    <GraphContent {...props} isCtrlPressed={isCtrlPressed} />
+                    <GraphContent
+                        nodes={nodes}
+                        edges={edges}
+                        selectedNode={selectedNode}
+                        selectedNodes={selectedNodes}
+                        isCreatingEdge={isCreatingEdge}
+                        edgeStart={edgeStart}
+                        onNodeClick={onNodeClick}
+                        onNodeEdit={onNodeEdit}
+                        onNodeDelete={onNodeDelete}
+                        onEdgeCreate={onEdgeCreate}
+                        onEdgeEdit={onEdgeEdit}
+                        onEdgeDelete={onEdgeDelete}
+                        onNodeDragEnd={onNodeDragEnd}
+                        onNodesDragEnd={onNodesDragEnd}
+                        onMarkObsolete={onMarkObsolete}
+                        selectedStartNodes={selectedStartNodes}
+                        selectedGoalNodes={selectedGoalNodes}
+                        isAutocompleteModeActive={isAutocompleteModeActive}
+                        onMultiSelect={onMultiSelect}
+                        expandedNodes={expandedNodes}
+                        onNodeDragOver={onNodeDragOver}
+                        onNodeDrop={onNodeDrop}
+                        isCtrlPressed={isCtrlPressed}
+                        isTimelineActive={isTimelineActive}
+                        timelineStartDate={timelineStartDate}
+                        currentScale={currentScale}
+                        transformState={transformState}
+                    />
                 </TransformComponent>
                 <ZoomControls />
             </TransformWrapper>

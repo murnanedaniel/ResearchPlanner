@@ -34,3 +34,10 @@ export interface GraphNode {
   }
   
   export type NodeClickHandler = (node: GraphNode, event?: React.MouseEvent) => void;
+  
+  export interface GraphData {
+    nodes: GraphNode[];
+    edges: Edge[];
+    timelineActive?: boolean;
+    timelineStartDate?: string;  // ISO string format for date
+  }

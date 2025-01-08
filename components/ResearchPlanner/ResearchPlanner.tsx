@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { NodeGraph } from './components/NodeGraph/NodeGraph';
 import { SidePanel } from './components/SidePanel/SidePanel';
@@ -8,6 +8,7 @@ import { GraphNode, Edge } from './types';
 import { useLayoutManager } from './hooks/useLayoutManager';
 import { useGraphPersistence } from './hooks/useGraphPersistence';
 import { Button } from '@/components/ui/button';
+import { useIdGenerator } from './hooks/useIdGenerator';
 
 export default function ResearchPlanner() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
@@ -23,7 +24,6 @@ export default function ResearchPlanner() {
   const [tempDescription, setTempDescription] = useState('');
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   const [edgeStart, setEdgeStart] = useState<number | null>(null);
-  const nextIdRef = useRef(1);
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
 
   // New autocomplete states
@@ -33,8 +33,12 @@ export default function ResearchPlanner() {
   const [selectedGoalNodes, setSelectedGoalNodes] = useState<number[]>([]);
   const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
 
+  const [isTimelineActive, setIsTimelineActive] = useState(false);
+  const [timelineStartDate, setTimelineStartDate] = useState(new Date());
+
   const { arrangeNodes, getNewNodePosition } = useLayoutManager();
   const { saveGraph, loadGraph, saveToFile, loadFromFile } = useGraphPersistence();
+  const { getNextId, initializeWithExistingIds } = useIdGenerator();
 
   // Add ref for tracking latest selection
   const latestSelectionRef = useRef<{
@@ -44,29 +48,28 @@ export default function ResearchPlanner() {
 
   const saveGraphState = useCallback(() => {
     if (nodes.length > 0 || edges.length > 0) {
-      saveGraph(nodes, edges);
+      saveGraph(nodes, edges, isTimelineActive, timelineStartDate);
     }
-  }, [nodes, edges, saveGraph]);
-
-  const getNextId = useCallback(() => {
-    const id = nextIdRef.current;
-    nextIdRef.current += 1;
-    return id;
-  }, []); // No dependencies needed
+  }, [nodes, edges, saveGraph, isTimelineActive, timelineStartDate]);
 
   useEffect(() => {
-    const savedData = loadGraph();
-    if (savedData && savedData.nodes.length > 0) {
-      console.log('Loaded nodes:', savedData.nodes);
-      setNodes(savedData.nodes);
-      setEdges(savedData.edges);
-      
-      // Set nextIdRef to highest existing ID + 1
-      const maxNodeId = Math.max(...savedData.nodes.map(n => n.id));
-      const maxEdgeId = savedData.edges.length > 0 ? Math.max(...savedData.edges.map(e => e.id)) : 0;
-      nextIdRef.current = Math.max(maxNodeId, maxEdgeId) + 1;
+    const data = loadGraph();
+    if (data) {
+      setNodes(data.nodes);
+      setEdges(data.edges);
+      if (data.timelineActive !== undefined) {
+        setIsTimelineActive(data.timelineActive);
+      }
+      if (data.timelineStartDate) {
+        setTimelineStartDate(new Date(data.timelineStartDate));
+      }
+      // Initialize ID generator with existing IDs
+      initializeWithExistingIds([
+        ...data.nodes.map(n => n.id),
+        ...data.edges.map(e => e.id)
+      ]);
     }
-  }, [loadGraph]);
+  }, [loadGraph, initializeWithExistingIds]);
 
   // Add initial mount effect
   useEffect(() => {
@@ -102,13 +105,6 @@ export default function ResearchPlanner() {
     }
   }, [nodes, edges]); // Only depend on data changes, not selection changes
 
-  // Restore general save effect
-  useEffect(() => {
-    if (nodes.length > 0 || edges.length > 0) {
-      saveGraph(nodes, edges);
-    }
-  }, [nodes, edges, saveGraph]);
-
   const addNode = () => {
     if (!newItemTitle.trim()) return;
     
@@ -128,8 +124,22 @@ export default function ResearchPlanner() {
   };
 
   const handleNodeDelete = useCallback((id: number) => {
+    console.log('Deleting node:', id);
+    console.log('Current nodes before deletion:', nodes);
+    
     setNodes(prevNodes => {
+      // Find the node being deleted
+      const nodeToDelete = prevNodes.find(n => n.id === id);
+      console.log('Node to delete:', nodeToDelete);
+      
+      // Log child nodes if any
+      if (nodeToDelete?.childNodes?.length) {
+        console.log('Child nodes that will remain:', nodeToDelete.childNodes);
+      }
+      
       const newNodes = prevNodes.filter(node => node.id !== id);
+      console.log('Nodes after deletion:', newNodes);
+      
       setEdges(prevEdges => {
         const newEdges = prevEdges.filter(edge => edge.source !== id && edge.target !== id);
         // Save the new state immediately
@@ -253,39 +263,29 @@ export default function ResearchPlanner() {
     setSelectedEdge(edge.id);
   };
 
-  const handleNodeDragEnd = (id: number, newX: number, newY: number, isMultiDrag?: boolean) => {
-    if (isMultiDrag && selectedNodes.size > 1) {
-      // Get the dragged node's original position
-      const draggedNode = nodes.find(n => n.id === id);
-      if (!draggedNode) return;
+  const handleNodeDragEnd = (id: number, newX: number, newY: number) => {
+    // Single node movement
+    const updatedNodes = nodes.map(node => {
+      if (node.id === id) {
+        return { ...node, x: newX, y: newY };
+      }
+      return node;
+    });
+    setNodes(updatedNodes);
+  };
 
-      // Calculate the movement delta
-      const deltaX = newX - draggedNode.x;
-      const deltaY = newY - draggedNode.y;
-
-      // Update all selected nodes
-      const updatedNodes = nodes.map(node => {
-        if (selectedNodes.has(node.id)) {
-          return {
-            ...node,
-            x: node.x + deltaX,
-            y: node.y + deltaY
-          };
+  const handleNodesDragEnd = (updates: { id: number; x: number; y: number }[]) => {
+    // Batch update multiple nodes
+    setNodes(prevNodes => {
+      const updatedNodes = [...prevNodes];
+      updates.forEach(update => {
+        const index = updatedNodes.findIndex(node => node.id === update.id);
+        if (index !== -1) {
+          updatedNodes[index] = { ...updatedNodes[index], x: update.x, y: update.y };
         }
-        return node;
       });
-
-      setNodes(updatedNodes);
-    } else {
-      // Single node drag
-      const updatedNodes = nodes.map(node => {
-        if (node.id === id) {
-          return { ...node, x: newX, y: newY };
-        }
-        return node;
-      });
-      setNodes(updatedNodes);
-    }
+      return updatedNodes;
+    });
   };
 
   const handleEdgeCreate = (nodeId: number) => {
@@ -328,10 +328,10 @@ export default function ResearchPlanner() {
             : node
         );
         // Save immediately after updating description
-        saveGraph(updatedNodes, edges);
+        saveGraphState();
         return updatedNodes;
       });
-      setTempDescription(value);  // Move this after the node update
+      setTempDescription(value);
     } else if (selectedEdge !== null) {
       console.log('Updating edge description:', selectedEdge, value);
       setEdges(prevEdges => {
@@ -341,10 +341,10 @@ export default function ResearchPlanner() {
             : edge
         );
         // Save immediately after updating description
-        saveGraph(nodes, updatedEdges);
+        saveGraphState();
         return updatedEdges;
       });
-      setTempDescription(value);  // Move this after the edge update
+      setTempDescription(value);
     }
   };
 
@@ -364,17 +364,28 @@ export default function ResearchPlanner() {
     }
   };
 
-  const handleSaveToFile = () => {
-    saveToFile(nodes, edges);
-  };
+  const handleSaveToFile = useCallback(() => {
+    saveToFile(nodes, edges, isTimelineActive, timelineStartDate);
+  }, [nodes, edges, saveToFile, isTimelineActive, timelineStartDate]);
 
-  const handleLoadFromFile = async () => {
+  const handleLoadFromFile = useCallback(async () => {
     const data = await loadFromFile();
     if (data) {
       setNodes(data.nodes);
       setEdges(data.edges);
+      if (data.timelineActive !== undefined) {
+        setIsTimelineActive(data.timelineActive);
+      }
+      if (data.timelineStartDate) {
+        setTimelineStartDate(new Date(data.timelineStartDate));
+      }
+      // Initialize ID generator with loaded IDs
+      initializeWithExistingIds([
+        ...data.nodes.map(n => n.id),
+        ...data.edges.map(e => e.id)
+      ]);
     }
-  };
+  }, [loadFromFile, initializeWithExistingIds]);
 
   const getDownstreamNodes = (startNodeId: number, nodes: GraphNode[], edges: Edge[]): Set<number> => {
     const downstream = new Set<number>([startNodeId]);
@@ -586,26 +597,32 @@ export default function ResearchPlanner() {
     setNewItemTitle('');
   };
 
-  // Add ESC key handler for collapsing nodes
+  // Add ESC key handler for collapsing nodes and clearing selections
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedNode !== null) {
-        const node = nodes.find(n => n.id === selectedNode);
-        if (node?.childNodes?.length) {
-          // Remove from expanded nodes set
-          setExpandedNodes(prev => {
-            const next = new Set(prev);
-            next.delete(selectedNode);
-            return next;
-          });
+      if (e.key === 'Escape') {
+        if (selectedNode !== null) {
+          const node = nodes.find(n => n.id === selectedNode);
+          if (node?.childNodes?.length) {
+            // If selected node has children, collapse it
+            setExpandedNodes(prev => {
+              const next = new Set(prev);
+              next.delete(selectedNode);
+              return next;
+            });
 
-          // Update the node's expanded state
-          setNodes(prev => prev.map(n => 
-            n.id === selectedNode 
-              ? { ...n, isExpanded: false }
-              : n
-          ));
+            // Update the node's expanded state
+            setNodes(prev => prev.map(n => 
+              n.id === selectedNode 
+                ? { ...n, isExpanded: false }
+                : n
+            ));
+          }
         }
+        // Clear all selections regardless
+        setSelectedNode(null);
+        setSelectedNodes(new Set());
+        setSelectedEdge(null);
       }
     };
 
@@ -616,8 +633,12 @@ export default function ResearchPlanner() {
   const handleCollapseToNode = () => {
     if (selectedNodes.size <= 1 || !newItemTitle.trim()) return;
 
+    console.log('Collapsing nodes to parent. Selected nodes:', Array.from(selectedNodes));
+    console.log('Current nodes before collapse:', nodes);
+
     const selectedNodesList = Array.from(selectedNodes);
     const selectedNodeObjects = nodes.filter(n => selectedNodes.has(n.id));
+    console.log('Selected node objects:', selectedNodeObjects);
     
     // Calculate average position of selected nodes
     const avgX = selectedNodeObjects.reduce((sum, n) => sum + n.x, 0) / selectedNodeObjects.length;
@@ -634,21 +655,85 @@ export default function ResearchPlanner() {
       childNodes: selectedNodesList,
       isExpanded: true,
     };
+    console.log('Created parent node:', parentNode);
 
     // Update child nodes with parentId
-    const updatedNodes = nodes.map(node => 
-      selectedNodes.has(node.id) 
-        ? { ...node, parentId: parentNode.id }
-        : node
-    );
+    const updatedNodes = nodes.map(node => {
+      if (selectedNodes.has(node.id)) {
+        console.log(`Setting parentId ${parentNode.id} for child node:`, node);
+        return { ...node, parentId: parentNode.id };
+      }
+      return node;
+    });
+    console.log('Updated nodes with new parent IDs:', updatedNodes);
 
     // Add the new parent node and update state
-    setNodes([...updatedNodes, parentNode]);
+    const finalNodes = [...updatedNodes, parentNode];
+    console.log('Final nodes after collapse:', finalNodes);
+    
+    setNodes(finalNodes);
     setExpandedNodes(prev => new Set([...Array.from(prev), parentNode.id]));
     setSelectedNodes(new Set([parentNode.id]));
     setSelectedNode(parentNode.id);
     setNewItemTitle('');
   };
+
+  const handleNodeDragOver = (targetNode: GraphNode) => {
+    // Only allow dropping if the target node is not a child of the dragged node
+    if (selectedNode === null) return;
+    const sourceNode = nodes.find(n => n.id === selectedNode);
+    if (!sourceNode) return;
+
+    // Prevent circular parent-child relationships
+    if (targetNode.parentId === sourceNode.id) return;
+    
+    // If the target node is already expanded, highlight it
+    if (targetNode.isExpanded) {
+      // Add visual feedback here if needed
+    }
+  };
+
+  const handleNodeDrop = (sourceId: number, targetId: number) => {
+    const sourceNode = nodes.find(n => n.id === sourceId);
+    const targetNode = nodes.find(n => n.id === targetId);
+    if (!sourceNode || !targetNode) return;
+
+    // Prevent circular parent-child relationships
+    if (targetNode.parentId === sourceNode.id) return;
+
+    // Update the source node with the new parent
+    const updatedSourceNode = {
+      ...sourceNode,
+      parentId: targetId
+    };
+
+    // Update the target node's childNodes array
+    const updatedTargetNode = {
+      ...targetNode,
+      childNodes: [...(targetNode.childNodes || []), sourceId],
+      isExpanded: true
+    };
+
+    // Update nodes array
+    setNodes(prev => prev.map(node => {
+      if (node.id === sourceId) return updatedSourceNode;
+      if (node.id === targetId) return updatedTargetNode;
+      return node;
+    }));
+
+    // Ensure the parent node is expanded
+    setExpandedNodes(prev => new Set([...Array.from(prev), targetId]));
+  };
+
+  // Add a useEffect to log state changes
+  useEffect(() => {
+    console.log('Timeline state changed:', isTimelineActive);
+  }, [isTimelineActive]);
+
+  // Add effect to save on timeline state changes
+  useEffect(() => {
+    saveGraphState();
+  }, [isTimelineActive, timelineStartDate, saveGraphState]);
 
   return (
     <div className="flex h-full w-full bg-gray-50">
@@ -668,6 +753,10 @@ export default function ResearchPlanner() {
           onToggleAutocomplete={handleAutocompleteToggle}
           autocompleteMode={autocompleteMode}
           isAutocompleteLoading={isAutocompleteLoading}
+          isTimelineActive={isTimelineActive}
+          onTimelineToggle={setIsTimelineActive}
+          timelineStartDate={timelineStartDate}
+          onTimelineStartDateChange={setTimelineStartDate}
         />
         
         <div className="flex-1 h-0">
@@ -684,6 +773,7 @@ export default function ResearchPlanner() {
             onEdgeDelete={deleteEdge}
             onEdgeCreate={handleEdgeCreate}
             onNodeDragEnd={handleNodeDragEnd}
+            onNodesDragEnd={handleNodesDragEnd}
             onMarkObsolete={markNodeObsolete}
             selectedStartNodes={selectedStartNodes}
             selectedGoalNodes={selectedGoalNodes}
@@ -691,6 +781,10 @@ export default function ResearchPlanner() {
             selectedNodes={selectedNodes}
             onMultiSelect={handleMultiSelect}
             expandedNodes={expandedNodes}
+            onNodeDragOver={handleNodeDragOver}
+            onNodeDrop={handleNodeDrop}
+            isTimelineActive={isTimelineActive}
+            timelineStartDate={timelineStartDate}
           />
         </div>
 

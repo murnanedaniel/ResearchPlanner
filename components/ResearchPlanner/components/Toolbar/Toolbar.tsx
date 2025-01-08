@@ -3,7 +3,10 @@
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Calendar } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 interface ToolbarProps {
   nodeTitle: string;
@@ -19,6 +22,10 @@ interface ToolbarProps {
   onToggleAutocomplete: () => void;
   autocompleteMode: 'start' | 'goal' | null;
   isAutocompleteLoading: boolean;
+  isTimelineActive: boolean;
+  onTimelineToggle: (active: boolean) => void;
+  timelineStartDate: Date;
+  onTimelineStartDateChange: (date: Date) => void;
 }
 
 export function Toolbar({
@@ -34,7 +41,11 @@ export function Toolbar({
   isAutocompleteModeActive,
   onToggleAutocomplete,
   autocompleteMode,
-  isAutocompleteLoading
+  isAutocompleteLoading,
+  isTimelineActive,
+  onTimelineToggle,
+  timelineStartDate,
+  onTimelineStartDateChange
 }: ToolbarProps) {
   return (
     <div className="flex gap-4 mb-4 items-center">
@@ -64,7 +75,7 @@ export function Toolbar({
         )}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         <Button 
           variant={isCreatingEdge ? "secondary" : "outline"}
           onClick={onToggleEdgeCreate}
@@ -82,6 +93,40 @@ export function Toolbar({
               (autocompleteMode === 'start' ? 'Select Start Node' : 'Select Goal Node') : 
               'Autocomplete'}
         </Button>
+
+        <div className="flex items-center gap-2 ml-4 border-l pl-4">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="timeline"
+              checked={isTimelineActive}
+              onCheckedChange={onTimelineToggle}
+            />
+            <label
+              htmlFor="timeline"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Timeline
+            </label>
+          </div>
+
+          {isTimelineActive && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Calendar className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <CalendarComponent
+                  mode="single"
+                  selected={timelineStartDate}
+                  onSelect={(date) => date && onTimelineStartDateChange(date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
     </div>
   );

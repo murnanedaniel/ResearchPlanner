@@ -3,10 +3,10 @@
 ## Documenting work
 
 Very important: Document all work in the .logs folder. For example, these files are already in the .logs folder:
-- logs/SUBGRAPH.md
-- logs/PROGRESS.md
-- logs/REFACTOR.md
-- logs/first_feature_set.md
+- .logs/SUBGRAPH.md
+- .logs/PROGRESS.md
+- .logs/REFACTOR.md
+- .logs/first_feature_set.md
 
 ## Overall
 

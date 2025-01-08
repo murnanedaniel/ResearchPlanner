@@ -7,5 +7,6 @@ export const GRAPH_CONSTANTS = {
     MAX_FONT_SIZE: 14,
     EDGE_TEXT_PADDING: 15,
     EDGE_MAX_WIDTH: 150,
-    LINE_HEIGHT: 1.2
+    LINE_HEIGHT: 1.2,
+    CANVAS_SIZE: 90000
 } as const; 

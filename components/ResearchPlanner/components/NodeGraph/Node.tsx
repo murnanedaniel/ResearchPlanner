@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { X, Ban, ChevronDown } from 'lucide-react';
 import { GraphNode } from '../../types';
 import { GRAPH_CONSTANTS } from '../../constants';
 import { useTransformContext } from 'react-zoom-pan-pinch';
 import { ScalingText } from '../shared/ScalingText';
+import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from '../../utils/timeline';
+import type { TimelineConfig } from '../../utils/timeline';
 
 interface NodeProps {
     node: GraphNode;
@@ -13,17 +15,24 @@ interface NodeProps {
     isMultiSelected: boolean;
     isCreatingEdge: boolean;
     isEdgeStart: boolean;
-    onNodeClick: (node: GraphNode, event?: React.MouseEvent) => void;
+    onNodeClick: (node: GraphNode, event: React.MouseEvent) => void;
     onNodeEdit: (node: GraphNode) => void;
     onNodeDelete: (id: number) => void;
     onEdgeCreate: (id: number) => void;
     onDragEnd: (id: number, x: number, y: number, isMultiDrag?: boolean) => void;
     onMarkObsolete: (id: number) => void;
-    isStartNode?: boolean;
-    isGoalNode?: boolean;
-    isAutocompleteModeActive?: boolean;
-    onToggleExpand?: (id: number) => void;
+    isStartNode: boolean;
+    isGoalNode: boolean;
+    isAutocompleteModeActive: boolean;
+    onToggleExpand: (id: number) => void;
+    onDragOver?: (node: GraphNode) => void;
+    onNodeDrop?: (sourceId: number, targetId: number) => void;
+    scale: number;
 }
+
+// Constants for node scaling
+const MIN_SCALE = 1.0;  // Node won't get smaller than 100% of original size
+const MAX_SCALE = 1.0;  // Node won't get larger than 100% of original size
 
 export function Node({
     node,
@@ -40,30 +49,51 @@ export function Node({
     isStartNode,
     isGoalNode,
     isAutocompleteModeActive,
-    onToggleExpand
+    onToggleExpand,
+    onDragOver,
+    onNodeDrop,
+    scale
 }: NodeProps) {
-    const dragStartPos = useRef({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const nodeRef = useRef<HTMLDivElement>(null);
     const transformContext = useTransformContext();
 
+    // Calculate the node scale based on zoom level
+    const nodeScale = Math.min(Math.max(1 / scale, MIN_SCALE), MAX_SCALE);
+    const scaledDiameter = GRAPH_CONSTANTS.NODE_DIAMETER * nodeScale;
+    const scaledRadius = GRAPH_CONSTANTS.NODE_RADIUS * nodeScale;
+
     const handleDragStart = (e: React.DragEvent) => {
-        e.stopPropagation();
-        const rect = (e.target as HTMLElement).closest('.graph-container')?.getBoundingClientRect();
-        if (rect) {
-            dragStartPos.current = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
-        }
+        if (!nodeRef.current) return;
+        
+        const rect = nodeRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        });
+        e.dataTransfer.setData('text/plain', node.id.toString());
+        setIsDragging(true);
     };
 
     const handleDragEnd = (e: React.DragEvent) => {
-        e.stopPropagation();
+        setIsDragging(false);
+        
         const rect = (e.target as HTMLElement).closest('.graph-container')?.getBoundingClientRect();
-        if (rect && transformContext?.transformState) {
-            const { scale, positionX, positionY } = transformContext.transformState;
-            const x = ((e.clientX - rect.left) / scale) - (positionX / scale);
-            const y = ((e.clientY - rect.top) / scale) - (positionY / scale);
-            onDragEnd(node.id, x, y, isMultiSelected);
+        if (!rect || !transformContext?.transformState) return;
+
+        const { scale, positionX, positionY } = transformContext.transformState;
+        const x = ((e.clientX - rect.left - positionX) / scale);
+        const y = ((e.clientY - rect.top - positionY) / scale);
+
+        onDragEnd(node.id, x, y, isMultiSelected);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (onDragOver) {
+            onDragOver(node);
         }
     };
 
@@ -76,43 +106,71 @@ export function Node({
         }
 
         if (isAutocompleteModeActive) {
-            onNodeClick(node);
+            onNodeClick(node, e);
             return;
         }
 
-        // Pass the event to allow parent to check ctrlKey
         onNodeClick(node, e);
     };
 
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        
+        const sourceId = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        console.log('Drop event - Source:', sourceId, 'Target:', node.id);
+        
+        if (!isNaN(sourceId) && sourceId !== node.id) {
+            if (e.ctrlKey) {
+                console.log('Ctrl-drop - creating parent-child relationship');
+                onNodeDrop?.(sourceId, node.id);
+            } else {
+                console.log('Normal drop - repositioning will be handled by dragEnd');
+            }
+        } else {
+            console.log('Invalid drop - same node or invalid ID');
+        }
+    };
+
     return (
-        <div className="absolute" style={{
-            left: node.x,
-            top: node.y,
-            transform: 'translate(-50%, -50%)'
-        }}>
+        <div
+            ref={nodeRef}
+            className={`absolute cursor-pointer ${isDragging ? 'opacity-50' : ''}`}
+            style={{
+                left: node.x - scaledRadius,
+                top: node.y - scaledRadius,
+                width: scaledDiameter,
+                height: scaledDiameter,
+                zIndex: isSelected || isMultiSelected ? 2 : 1,
+            }}
+            draggable
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
+        >
             {(node.childNodes?.length ?? 0) > 0 && (
                 <>
                     <div className={`absolute rounded-full border-2 border-slate-300 bg-white
                         ${node.isObsolete ? 'opacity-40' : 'opacity-60'}`}
                         style={{
-                            width: GRAPH_CONSTANTS.NODE_DIAMETER,
-                            height: GRAPH_CONSTANTS.NODE_DIAMETER,
-                            transform: 'translate(4px, 4px)'
+                            width: scaledDiameter,
+                            height: scaledDiameter,
+                            transform: `translate(${4 * nodeScale}px, ${4 * nodeScale}px)`
                         }}
                     />
                     <div className={`absolute rounded-full border-2 border-slate-300 bg-white
                         ${node.isObsolete ? 'opacity-45' : 'opacity-65'}`}
                         style={{
-                            width: GRAPH_CONSTANTS.NODE_DIAMETER,
-                            height: GRAPH_CONSTANTS.NODE_DIAMETER,
-                            transform: 'translate(2px, 2px)'
+                            width: scaledDiameter,
+                            height: scaledDiameter,
+                            transform: `translate(${2 * nodeScale}px, ${2 * nodeScale}px)`
                         }}
                     />
                     <div className="absolute rounded-full border-2 border-slate-300 bg-white opacity-30"
                         style={{
-                            width: GRAPH_CONSTANTS.NODE_DIAMETER - 10,
-                            height: GRAPH_CONSTANTS.NODE_DIAMETER - 10,
-                            transform: 'translate(8px, 8px)'
+                            width: scaledDiameter - (10 * nodeScale),
+                            height: scaledDiameter - (10 * nodeScale),
+                            transform: `translate(${8 * nodeScale}px, ${8 * nodeScale}px)`
                         }}
                     />
                 </>
@@ -130,8 +188,9 @@ export function Node({
                     ${node.isExpanded ? 'opacity-30' : node.isObsolete ? 'opacity-50' : 'opacity-100'}
                     bg-white shadow-md group hover:border-slate-400 transition-colors transition-opacity`}
                 style={{
-                    width: GRAPH_CONSTANTS.NODE_DIAMETER,
-                    height: GRAPH_CONSTANTS.NODE_DIAMETER
+                    width: scaledDiameter,
+                    height: scaledDiameter,
+                    transform: `scale(${nodeScale})`
                 }}
                 onClick={handleClick}
                 onDoubleClick={() => onNodeEdit(node)}
@@ -172,12 +231,7 @@ export function Node({
                         <X className="h-3 w-3" />
                     </button>
                 </div>
-                <div
-                    className="node-drag-handle w-full h-full flex items-center justify-center p-3"
-                    draggable
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                >
+                <div className="node-drag-handle w-full h-full flex items-center justify-center p-3">
                     <ScalingText text={node.title} />
                 </div>
             </div>

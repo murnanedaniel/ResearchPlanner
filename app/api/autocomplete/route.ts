@@ -42,8 +42,6 @@ export async function POST(request: Request) {
     Consider the existing graph structure and ensure the new steps integrate well with any existing research paths.
     ]`;
 
-    console.log(prompt);
-
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [

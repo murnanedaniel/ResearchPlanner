@@ -1,84 +1,82 @@
-# Autocomplete Feature Implementation Progress
+# Research Planner Progress Log
 
-## Phase 1: Basic Selection & UI ✓
+## Features
 
-### 1. Selection UI ✓
-- [x] Add autocomplete mode state to ResearchPlanner
-- [x] Add selected start/goal nodes state
-- [x] Add selection mode state (start vs goal selection)
+### 1. Autocomplete (December 2023)
+#### Completed
+- **Selection & UI**
+  - Autocomplete mode with start/goal node selection
+  - Visual feedback for selected nodes
+  - Smart node positioning logic
+  - OpenAI API integration
 
-### 2. UI Controls ✓
-- [x] Add Autocomplete button to Toolbar
-- [x] Add Start/Goal selection sub-buttons
-- [x] Implement visual feedback for selected nodes
+- **Multi-Node Operations**
+  - Ctrl+drag selection box
+  - Bulk deletion with Delete key
+  - State persistence after deletion
+  - Multi-node drag movement
+  - ESC key to clear all selections
+  - ESC key for collapsing nodes with children
 
-### 3. Node Positioning Logic ✓
-- [x] Implement calculateIntermediatePosition function
-- [x] Add position calculation to node creation
+- **Context-Aware AI**
+  - Full graph structure context
+  - Node relationships and dependencies
+  - Smart node positioning to prevent overlaps
 
-### 4. API Integration ✓
-- [x] Create OpenAI API route
-- [x] Implement prompt construction
-- [x] Add response parsing
-- [x] Connect API to UI
+- **Subgraph Management**
+  - Subnode creation and management
+  - Expand/collapse functionality
+  - ESC key for quick collapse
 
-### 5. Testing Implementation ✓
-- [x] Set up Jest and React Testing Library
-- [x] Add API route tests
-- [x] Add Node component tests
-- [x] Add Toolbar component tests
-- [x] Fix test configuration issues
+#### Planned Improvements
+- Multiple start/goal nodes support
+- Alternative path suggestions
+- Confidence scores for suggestions
+- Step refinement capabilities
+- Undo/redo for autocomplete actions
+- Step-by-step node generation
+- Performance optimizations for large graphs
 
-## Phase 2: Enhanced Functionality
+### 2. Timeline (January 2024)
+#### Completed
+- **Core Functionality**
+  - Timeline toggle in toolbar
+  - Persistent timeline state
+  - Date picker for timeline start
 
-### 1. Multi-Node Selection & Deletion ✓
-- [x] Implement Ctrl+drag selection box
-- [x] Add multi-node selection state
-- [x] Add bulk deletion with Delete key
-- [x] Ensure proper state persistence after deletion
-- [x] Preserve existing node styling and UI
+- **Dynamic Grid**
+  - Zoom-based scale adaptation
+    - Daily: high zoom
+    - Weekly: medium zoom
+    - Monthly: low zoom
+  - Current date indicator
+  - Full canvas coverage
 
-### 2. Context-Aware AI Integration ✓
-- [x] Send full graph structure to API for better context
-- [x] Include node relationships and dependencies
-- [ ] Consider graph history in suggestions
-- [ ] Improve prompt engineering for more relevant steps
+- **Node Integration**
+  - Grid-based snapping
+  - Dynamic spacing with zoom
+  - Smooth drag operations
+  - Multi-node drag snapping
 
-### 3. Improved Node Creation UX ✓
-- [x] Implement smart node positioning to prevent overlaps
-- [x] Add horizontal spacing for better visibility
-- [x] Add fallback positioning for invalid coordinates
-- [ ] Add sequential fade-in animations for new nodes
-- [ ] Visual feedback during node generation process 
+- **Data Persistence**
+  - Local storage integration
+  - File export/import support
+  - Session state management
 
-### 4. Bug Fixes & Optimizations ✓
-- [x] Fix duplicate node ID generation
-- [x] Fix NaN coordinate errors
-- [x] Improve state management with useRef
-- [x] Add error handling for invalid coordinates
-- [x] Optimize node positioning calculations
+#### Planned Improvements
+- Timeline zoom controls
+- Timeline navigation
+- Node date labels
+- Multiple timeline views
+- Export options
+- Optimize grid rendering for performance
+- Scale node sizes with zoom level
 
-### 5. Subgraph Functionality ✓
-- [x] Add subnode creation option
-- [x] Add "explode" option to view subnodes (and hide parent)
-- [x] Add "hide" option to hide subnodes (and show parent), using "esc" key to toggle
-
-## Phase 3: Future Enhancements
-
-### 1. Advanced AI Features
-- [ ] Add support for multiple start/goal nodes
-- [ ] Implement alternative path suggestions
-- [ ] Add confidence scores for suggested steps
-- [ ] Allow user to request step refinement
-
-### 2. UX Improvements
-- [ ] Add undo/redo for autocomplete actions
-- [ ] Implement step-by-step node generation
-- [ ] Add progress indicators
-- [ ] Improve error feedback
-
-### 3. Performance Optimization
-- [ ] Implement lazy loading for large graphs
-- [ ] Add caching for API responses
-- [ ] Optimize graph layout calculations
-- [ ] Reduce unnecessary re-renders
+## Technical Debt & Optimizations
+- [ ] Lazy loading for large graphs
+- [ ] API response caching
+- [ ] Graph layout calculation optimization
+- [ ] Render performance improvements
+- [ ] State management refinement
+- [ ] Optimize timeline grid rendering
+- [ ] Implement node size scaling with zoom

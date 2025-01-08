@@ -1,15 +1,20 @@
 import { useCallback } from 'react';
-import { GraphNode, Edge } from '../types';
-
-interface GraphData {
-  nodes: GraphNode[];
-  edges: Edge[];
-}
+import { GraphNode, Edge, GraphData } from '../types';
 
 export function useGraphPersistence() {
-  const saveGraph = useCallback((nodes: GraphNode[], edges: Edge[]) => {
+  const saveGraph = useCallback((
+    nodes: GraphNode[], 
+    edges: Edge[],
+    timelineActive?: boolean,
+    timelineStartDate?: Date
+  ) => {
     try {
-      const data: GraphData = { nodes, edges };
+      const data: GraphData = { 
+        nodes, 
+        edges,
+        timelineActive,
+        timelineStartDate: timelineStartDate?.toISOString()
+      };
       const serialized = JSON.stringify(data);
       console.log('Saving graph:', data);
       localStorage.setItem('research-graph', serialized);
@@ -35,8 +40,18 @@ export function useGraphPersistence() {
     }
   }, []);
 
-  const saveToFile = useCallback((nodes: GraphNode[], edges: Edge[]) => {
-    const data: GraphData = { nodes, edges };
+  const saveToFile = useCallback((
+    nodes: GraphNode[], 
+    edges: Edge[],
+    timelineActive?: boolean,
+    timelineStartDate?: Date
+  ) => {
+    const data: GraphData = { 
+      nodes, 
+      edges,
+      timelineActive,
+      timelineStartDate: timelineStartDate?.toISOString()
+    };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
