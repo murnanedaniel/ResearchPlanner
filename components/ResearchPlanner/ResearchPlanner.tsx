@@ -4,13 +4,15 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { NodeGraph } from './components/NodeGraph/NodeGraph';
 import { SidePanel } from './components/SidePanel/SidePanel';
-import { GraphNode, Edge } from './types';
+import { GraphNode, Edge, GraphData } from './types/index';
 import { useLayoutManager } from './hooks/useLayoutManager';
 import { Button } from '@/components/ui/button';
 import { useIdGenerator } from './hooks/useIdGenerator';
 import { useGraphState } from './context/GraphContext';
 import { useNodeOperations } from './hooks/useNodeOperations';
 import { useEdgeOperations } from './hooks/useEdgeOperations';
+import { calculateNodeHull } from './utils/hull';
+import { useColorGenerator } from './hooks/useColorGenerator';
 
 export default function ResearchPlanner() {
   const { 
@@ -59,6 +61,7 @@ export default function ResearchPlanner() {
 
   const { arrangeNodes, getNewNodePosition } = useLayoutManager();
   const { getNextId, initializeWithExistingIds } = useIdGenerator();
+  const { getNextColor } = useColorGenerator();
 
   // Add ref for tracking latest selection
   const latestSelectionRef = useRef<{
@@ -231,10 +234,45 @@ export default function ResearchPlanner() {
     setSelectedEdge(edge.id);
   };
 
-  const handleNodeDragEnd = (nodeId: number, x: number, y: number) => {
-    setNodes(prevNodes => prevNodes.map(node => 
-      node.id === nodeId ? { ...node, x, y } : node
-    ));
+  const handleNodeDragEnd = (id: number, x: number, y: number) => {
+    const node = nodes.find(n => n.id === id);
+    if (!node) return;
+
+    // Update the dragged node
+    const updatedNode = { ...node, x, y };
+
+    // If this is a child node, update parent's hull
+    if (node.parentId) {
+        const parentNode = nodes.find(n => n.id === node.parentId);
+        if (parentNode) {
+            const siblingNodes = nodes.filter(n => n.parentId === node.parentId);
+            const updatedParent = {
+                ...parentNode,
+                hullPoints: calculateNodeHull(parentNode, [
+                    ...siblingNodes.filter(n => n.id !== id),
+                    updatedNode
+                ])
+            };
+            
+            setNodes(prev => [
+                ...prev.filter(n => n.id !== id && n.id !== node.parentId),
+                updatedParent,
+                updatedNode
+            ]);
+            return;
+        }
+    }
+
+    // If this is a parent node, update its own hull
+    if (node.childNodes?.length) {
+        const childNodes = nodes.filter(n => node.childNodes?.includes(n.id));
+        updatedNode.hullPoints = calculateNodeHull(updatedNode, childNodes);
+    }
+
+    setNodes(prev => [
+        ...prev.filter(n => n.id !== id),
+        updatedNode
+    ]);
   };
 
   const handleNodesDragEnd = (updates: { id: number; x: number; y: number }[]) => {
@@ -420,27 +458,38 @@ export default function ResearchPlanner() {
     
     // Create the child node
     const newNode: GraphNode = {
-      id,
-      title: newItemTitle.trim(),
-      description: '',
-      x: position.x,
-      y: position.y,
-      isObsolete: false,
-      parentId: selectedNode,
-      childNodes: [],
+        id,
+        title: newItemTitle.trim(),
+        description: '',
+        x: position.x,
+        y: position.y,
+        isObsolete: false,
+        parentId: selectedNode,
+        childNodes: [],
     };
+
+    // Get all child nodes including the new one
+    const childNodes = [
+        ...nodes.filter(n => n.parentId === selectedNode),
+        newNode
+    ];
+
+    // Calculate hull points
+    const hullPoints = calculateNodeHull(parentNode, childNodes);
 
     // Update the parent node
     const updatedParent: GraphNode = {
-      ...parentNode,
-      childNodes: [...(parentNode.childNodes || []), id],
-      isExpanded: true,
+        ...parentNode,
+        childNodes: [...(parentNode.childNodes || []), id],
+        isExpanded: true,
+        hullPoints,
+        hullColor: parentNode.hullColor || getNextColor()  // Use existing color or generate new one
     };
 
     setNodes(prev => [
-      ...prev.filter(n => n.id !== selectedNode),
-      updatedParent,
-      newNode,
+        ...prev.filter(n => n.id !== selectedNode),
+        updatedParent,
+        newNode,
     ]);
 
     // Expand the parent node
@@ -516,6 +565,10 @@ export default function ResearchPlanner() {
     console.log('Collapsing nodes to parent. Selected nodes:', Array.from(selectedNodes));
     console.log('Current nodes before collapse:', nodes);
 
+    // Initialize ID generator with existing IDs to ensure uniqueness
+    const existingIds = nodes.map(n => n.id);
+    initializeWithExistingIds(existingIds);
+
     const selectedNodesList = Array.from(selectedNodes);
     const selectedNodeObjects = nodes.filter(n => selectedNodes.has(n.id));
     console.log('Selected node objects:', selectedNodeObjects);
@@ -524,7 +577,7 @@ export default function ResearchPlanner() {
     const avgX = selectedNodeObjects.reduce((sum, n) => sum + n.x, 0) / selectedNodeObjects.length;
     const avgY = selectedNodeObjects.reduce((sum, n) => sum + n.y, 0) / selectedNodeObjects.length;
 
-    // Create the parent node
+    // Create the parent node with a guaranteed unique ID
     const parentNode: GraphNode = {
       id: getNextId(),
       title: newItemTitle.trim(),
@@ -534,7 +587,13 @@ export default function ResearchPlanner() {
       isObsolete: false,
       childNodes: selectedNodesList,
       isExpanded: true,
+      hullColor: getNextColor()  // Set the hull color when creating the parent node
     };
+
+    // Calculate hull points for the parent
+    const hullPoints = calculateNodeHull(parentNode, selectedNodeObjects);
+    parentNode.hullPoints = hullPoints;
+
     console.log('Created parent node:', parentNode);
 
     // Update child nodes with parentId

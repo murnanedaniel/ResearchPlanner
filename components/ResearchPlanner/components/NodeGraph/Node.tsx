@@ -2,12 +2,13 @@
 
 import React, { useRef, useState } from 'react';
 import { X, Ban, ChevronDown } from 'lucide-react';
-import { GraphNode } from '../../types';
+import type { GraphNode, Point } from '../../types/index';
 import { GRAPH_CONSTANTS } from '../../constants';
 import { useTransformContext } from 'react-zoom-pan-pinch';
 import { ScalingText } from '../shared/ScalingText';
 import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from '../../utils/timeline';
 import type { TimelineConfig } from '../../utils/timeline';
+import { useColorGenerator } from '../../hooks/useColorGenerator';
 
 interface NodeProps {
     node: GraphNode;
@@ -58,11 +59,15 @@ export function Node({
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const nodeRef = useRef<HTMLDivElement>(null);
     const transformContext = useTransformContext();
-
+    const { getNextColor } = useColorGenerator();
+    
     // Calculate the node scale based on zoom level
     const nodeScale = Math.min(Math.max(1 / scale, MIN_SCALE), MAX_SCALE);
     const scaledDiameter = GRAPH_CONSTANTS.NODE_DIAMETER * nodeScale;
     const scaledRadius = GRAPH_CONSTANTS.NODE_RADIUS * nodeScale;
+
+    // Use stored color or generate new one
+    const hullColor = node.hullColor || getNextColor();
 
     const handleDragStart = (e: React.DragEvent) => {
         if (!nodeRef.current) return;
@@ -140,7 +145,7 @@ export function Node({
                 top: node.y - scaledRadius,
                 width: scaledDiameter,
                 height: scaledDiameter,
-                zIndex: isSelected || isMultiSelected ? 2 : 1,
+                zIndex: node.isExpanded ? 0 : (isSelected || isMultiSelected ? 2 : 1),
             }}
             draggable
             onDragStart={handleDragStart}
@@ -148,7 +153,81 @@ export function Node({
             onDrop={handleDrop}
             onDragEnd={handleDragEnd}
         >
-            {(node.childNodes?.length ?? 0) > 0 && (
+            {node.hullPoints && node.hullPoints.length > 0 && (
+                <svg
+                    className="absolute"
+                    style={{
+                        left: -1000,  // Large offset to ensure hull is visible
+                        top: -1000,
+                        width: 2000,  // Large size to accommodate hull
+                        height: 2000,
+                        pointerEvents: 'none',  // SVG container shouldn't capture events
+                        zIndex: -1,  // Put hull behind all nodes
+                        overflow: 'visible'  // Allow negative coordinates
+                    }}
+                >
+                    {(() => {
+                        const adjustedPoints = node.hullPoints.map(p => ({
+                            x: p.x - (node.x - scaledRadius) + 1000,
+                            y: p.y - (node.y - scaledRadius) + 1000
+                        }));
+                        const topPoint = adjustedPoints.reduce((min, p) => p.y < min.y ? p : min);
+
+                        // Create smooth path with quadratic curves
+                        const smoothPath = adjustedPoints.reduce((path, point, i, points) => {
+                            if (i === 0) return `M ${point.x} ${point.y}`;
+                            
+                            const prev = points[i - 1];
+                            const curr = point;
+                            const next = points[(i + 1) % points.length];
+                            
+                            // Calculate the midpoint between current and next point
+                            const midX = (curr.x + next.x) / 2;
+                            const midY = (curr.y + next.y) / 2;
+                            
+                            // Use the current point as control point for a quadratic curve to the midpoint
+                            return `${path} Q ${curr.x} ${curr.y}, ${midX} ${midY}`;
+                        }, '');
+                        
+                        return (
+                            <>
+                                <path
+                                    d={`${smoothPath} Z`}
+                                    style={{ 
+                                        pointerEvents: 'auto',
+                                        fill: hullColor.fill,
+                                        stroke: hullColor.stroke,
+                                        opacity: node.isExpanded ? 0.3 : 0.1
+                                    }}
+                                    strokeWidth="2"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onNodeClick(node, e);
+                                    }}
+                                />
+                                {node.isExpanded && (
+                                    <text
+                                        x={topPoint.x}
+                                        y={topPoint.y - 10}
+                                        textAnchor="middle"
+                                        style={{ 
+                                            fill: hullColor.stroke,
+                                            fontSize: `${14 * nodeScale}px`,
+                                            pointerEvents: 'none',
+                                            userSelect: 'none',
+                                            fontWeight: 500
+                                        }}
+                                    >
+                                        {node.title}
+                                    </text>
+                                )}
+                            </>
+                        );
+                    })()}
+                </svg>
+            )}
+
+            {(node.childNodes?.length ?? 0) > 0 && !node.isExpanded && (
                 <>
                     <div className={`absolute rounded-full border-2 border-slate-300 bg-white
                         ${node.isObsolete ? 'opacity-40' : 'opacity-60'}`}
@@ -185,7 +264,7 @@ export function Node({
                     ${isStartNode ? 'ring-2 ring-emerald-500' : ''}
                     ${isGoalNode ? 'ring-2 ring-blue-500' : ''}
                     ${isAutocompleteModeActive ? 'hover:ring-2 hover:ring-purple-500' : ''}
-                    ${node.isExpanded ? 'opacity-30' : node.isObsolete ? 'opacity-50' : 'opacity-100'}
+                    ${node.isExpanded ? 'opacity-0' : node.isObsolete ? 'opacity-50' : 'opacity-100'}
                     bg-white shadow-md group hover:border-slate-400 transition-colors transition-opacity`}
                 style={{
                     width: scaledDiameter,

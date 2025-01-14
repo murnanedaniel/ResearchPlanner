@@ -6,11 +6,14 @@ import { useLayoutManager } from './useLayoutManager';
 
 export function useNodeOperations() {
   const { nodes, edges, setNodes, setEdges } = useGraphState();
-  const { getNextId } = useIdGenerator();
+  const { getNextId, initializeWithExistingIds } = useIdGenerator();
   const { getNewNodePosition } = useLayoutManager();
 
   const addNode = useCallback((title: string, selectedNodeId?: number) => {
     if (!title.trim()) return;
+    
+    const existingIds = nodes.map(n => n.id);
+    initializeWithExistingIds(existingIds);
     
     const position = getNewNodePosition(nodes, selectedNodeId);
     const id = getNextId();
@@ -25,7 +28,7 @@ export function useNodeOperations() {
 
     setNodes(prevNodes => [...prevNodes, newNode]);
     return newNode;
-  }, [nodes, getNextId, getNewNodePosition, setNodes]);
+  }, [nodes, getNextId, getNewNodePosition, setNodes, initializeWithExistingIds]);
 
   const deleteNode = useCallback((id: number) => {
     setNodes(prevNodes => prevNodes.filter(node => node.id !== id));

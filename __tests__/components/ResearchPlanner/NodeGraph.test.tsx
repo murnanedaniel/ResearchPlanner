@@ -1,6 +1,6 @@
 import { render, fireEvent, screen } from '@testing-library/react';
 import { NodeGraph } from '@/components/ResearchPlanner/components/NodeGraph/NodeGraph';
-import { GraphNode, Edge } from '@/components/ResearchPlanner/types';
+import { GraphNode, Edge } from '@/components/ResearchPlanner/types/index';
 
 // Mock the TransformWrapper component and its context
 jest.mock('react-zoom-pan-pinch', () => ({
