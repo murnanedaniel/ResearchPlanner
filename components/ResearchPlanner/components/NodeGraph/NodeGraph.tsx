@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { GraphNode, Edge, SelectionBox } from '../../types';
+import { GraphNode, Edge } from '../../types';
 import { Node as NodeComponent } from './Node';
 import { GRAPH_CONSTANTS } from '../../constants';
 import { TransformWrapper, TransformComponent, useControls, useTransformContext } from 'react-zoom-pan-pinch';
@@ -35,6 +35,7 @@ interface NodeGraphProps {
     edges: Edge[];
     selectedNode: number | null;
     selectedNodes: Set<number>;
+    selectedEdge: number | null;
     isCreatingEdge: boolean;
     edgeStart: number | null;
     onNodeClick: (node: GraphNode) => void;
@@ -55,6 +56,11 @@ interface NodeGraphProps {
     onNodeDrop: (sourceId: number, targetId: number) => void;
     isTimelineActive: boolean;
     timelineStartDate: Date;
+}
+
+interface SelectionBox {
+    start: { x: number; y: number };
+    current: { x: number; y: number };
 }
 
 const WrappedEdgeLabel = ({ text, x1, y1, x2, y2, className = '' }: { 
@@ -108,6 +114,7 @@ function GraphContent({
     edges,
     selectedNode,
     selectedNodes,
+    selectedEdge,
     isCreatingEdge,
     edgeStart,
     onNodeClick,
@@ -389,7 +396,7 @@ function GraphContent({
                                 stroke="#64748b"
                                 strokeWidth="2"
                                 markerEnd="url(#arrowhead)"
-                                className={`group-hover:stroke-blue-500 ${edge.isObsolete ? 'opacity-50' : ''}`}
+                                className={`group-hover:stroke-blue-500 ${edge.isObsolete ? 'opacity-50' : ''} ${edge.id === selectedEdge ? 'stroke-blue-500 stroke-[3]' : ''}`}
                             />
                             {/* Delete button */}
                             <g
@@ -464,6 +471,7 @@ export function NodeGraph({
     edges,
     selectedNode,
     selectedNodes,
+    selectedEdge,
     isCreatingEdge,
     edgeStart,
     onNodeClick,
@@ -552,6 +560,7 @@ export function NodeGraph({
                         edges={edges}
                         selectedNode={selectedNode}
                         selectedNodes={selectedNodes}
+                        selectedEdge={selectedEdge}
                         isCreatingEdge={isCreatingEdge}
                         edgeStart={edgeStart}
                         onNodeClick={onNodeClick}
