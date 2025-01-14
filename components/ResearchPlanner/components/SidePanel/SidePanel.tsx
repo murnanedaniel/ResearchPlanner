@@ -36,7 +36,7 @@ export function SidePanel({
   const title = selectedNode?.title || selectedEdge?.title || '';
 
   return (
-    <div className="w-1/3 h-full border-l p-4 bg-white flex flex-col">
+    <div className="w-1/3 h-full border-l p-4 bg-white flex flex-col overflow-y-auto">
       <Input
         value={title}
         onChange={(e) => onTitleChange(e.target.value)}

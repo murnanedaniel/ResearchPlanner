@@ -533,6 +533,14 @@ export function NodeGraph({
                     // Single source of truth for all transform updates
                     setCurrentScale(state.scale);
                     setTransformState(state);
+                    
+                    // Update data attributes directly from transform state
+                    const container = document.querySelector('.graph-container');
+                    if (container) {
+                        container.setAttribute('data-scale', state.scale.toString());
+                        container.setAttribute('data-position-x', state.positionX.toString());
+                        container.setAttribute('data-position-y', state.positionY.toString());
+                    }
                 }}
             >
                 <TransformComponent

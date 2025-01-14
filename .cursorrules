@@ -8,6 +8,8 @@ Very important: Document all work in the .logs folder. For example, these files 
 - .logs/REFACTOR.md
 - .logs/first_feature_set.md
 
+Issues are documented in .logs/ISSUES.md
+
 ## Overall
 
 This is a Research Planning application built with Next.js that allows users to create, manage, and visualize research nodes and their connections in a graph-like interface.

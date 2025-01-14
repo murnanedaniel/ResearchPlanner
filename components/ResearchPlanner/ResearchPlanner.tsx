@@ -55,7 +55,21 @@ export default function ResearchPlanner() {
   useEffect(() => {
     const data = loadGraph();
     if (data) {
-      setNodes(data.nodes);
+      // First, set up the expandedNodes set from the saved data
+      const expandedNodeIds = new Set<number>();
+      data.nodes.forEach(node => {
+        if (node.isExpanded) {
+          expandedNodeIds.add(node.id);
+        }
+      });
+      setExpandedNodes(expandedNodeIds);
+
+      // Then set nodes, ensuring their isExpanded state matches the expandedNodes set
+      setNodes(data.nodes.map(node => ({
+        ...node,
+        isExpanded: expandedNodeIds.has(node.id)
+      })));
+      
       setEdges(data.edges);
       if (data.timelineActive !== undefined) {
         setIsTimelineActive(data.timelineActive);
@@ -204,7 +218,16 @@ export default function ResearchPlanner() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Delete' && selectedNodes.size > 0) {
+      // Check if we're currently editing in any part of the MDXEditor
+      const activeElement = document.activeElement;
+      const isEditingText = 
+        activeElement?.closest('.mdxeditor-root') !== null ||
+        activeElement?.closest('[contenteditable="true"]') !== null ||
+        activeElement?.closest('.prose') !== null ||
+        activeElement?.tagName === 'INPUT' ||
+        activeElement?.tagName === 'TEXTAREA';
+      
+      if (e.key === 'Delete' && selectedNodes.size > 0 && !isEditingText) {
         Array.from(selectedNodes).forEach(nodeId => {
           handleNodeDelete(nodeId);
         });
@@ -225,6 +248,9 @@ export default function ResearchPlanner() {
   const handleEditNode = (node: GraphNode) => {
     // If this is an expansion state change
     if ('isExpanded' in node) {
+      const nodesMap = new Map(nodes.map(n => [n.id, n]));
+      const allDescendants = getAllDescendantIds(node.id, nodesMap);
+      
       // Update expanded nodes set
       setExpandedNodes(prev => {
         const next = new Set(prev);
@@ -232,15 +258,24 @@ export default function ResearchPlanner() {
           next.add(node.id);
         } else {
           next.delete(node.id);
+          // Also remove all descendants when collapsing
+          allDescendants.forEach(id => next.delete(id));
         }
         return next;
       });
-    }
 
-    // Update the node in the nodes array
-    setNodes(prev => prev.map(n => 
-      n.id === node.id ? { ...n, ...node } : n
-    ));
+      // Update all affected nodes
+      setNodes(prev => prev.map(n => {
+        if (n.id === node.id) {
+          return { ...n, isExpanded: node.isExpanded };
+        }
+        // When collapsing, also collapse all descendants
+        if (!node.isExpanded && allDescendants.includes(n.id)) {
+          return { ...n, isExpanded: false };
+        }
+        return n;
+      }));
+    }
 
     // If we're editing in the dialog
     if (node.description !== undefined) {
@@ -597,6 +632,27 @@ export default function ResearchPlanner() {
     setNewItemTitle('');
   };
 
+  // Helper function to get all descendant node IDs recursively
+  const getAllDescendantIds = useCallback((nodeId: number, nodesMap: Map<number, GraphNode>): number[] => {
+    const node = nodesMap.get(nodeId);
+    if (!node?.childNodes?.length) return [];
+    
+    const descendants: number[] = [];
+    const stack = [...node.childNodes];
+    
+    while (stack.length > 0) {
+      const currentId = stack.pop()!;
+      descendants.push(currentId);
+      
+      const currentNode = nodesMap.get(currentId);
+      if (currentNode?.childNodes?.length) {
+        stack.push(...currentNode.childNodes);
+      }
+    }
+    
+    return descendants;
+  }, []);
+
   // Add ESC key handler for collapsing nodes and clearing selections
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -604,19 +660,27 @@ export default function ResearchPlanner() {
         if (selectedNode !== null) {
           const node = nodes.find(n => n.id === selectedNode);
           if (node?.childNodes?.length) {
-            // If selected node has children, collapse it
+            // Create a map for efficient node lookup
+            const nodesMap = new Map(nodes.map(n => [n.id, n]));
+            
+            // Get all descendant nodes recursively
+            const allDescendants = getAllDescendantIds(selectedNode, nodesMap);
+            
+            // Remove all descendants from expanded nodes set
             setExpandedNodes(prev => {
               const next = new Set(prev);
-              next.delete(selectedNode);
+              allDescendants.forEach(id => next.delete(id));
+              next.delete(selectedNode); // Also collapse the selected node
               return next;
             });
 
-            // Update the node's expanded state
-            setNodes(prev => prev.map(n => 
-              n.id === selectedNode 
-                ? { ...n, isExpanded: false }
-                : n
-            ));
+            // Update all affected nodes' expanded state
+            setNodes(prev => prev.map(n => {
+              if (n.id === selectedNode || allDescendants.includes(n.id)) {
+                return { ...n, isExpanded: false };
+              }
+              return n;
+            }));
           }
         }
         // Clear all selections regardless
@@ -628,7 +692,7 @@ export default function ResearchPlanner() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNode, nodes]);
+  }, [selectedNode, nodes, getAllDescendantIds]);
 
   const handleCollapseToNode = () => {
     if (selectedNodes.size <= 1 || !newItemTitle.trim()) return;

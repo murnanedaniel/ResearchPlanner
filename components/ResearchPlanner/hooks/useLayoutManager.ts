@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import { GraphNode, Edge } from '../types';
+import { GRAPH_CONSTANTS } from '../constants';
 
 interface Position {
   x: number;
@@ -17,32 +18,27 @@ export function useLayoutManager() {
   const VERTICAL_SPACING = 100;
 
   const getNewNodePosition = useCallback((nodes: GraphNode[], selectedId?: number): Position => {
-    if (nodes.length === 0) {
-      return { x: 500, y: 500 };
+    // Get the graph container element
+    const container = document.querySelector('.graph-container');
+    if (!container) {
+      return { x: GRAPH_CONSTANTS.CANVAS_SIZE / 2, y: GRAPH_CONSTANTS.CANVAS_SIZE / 2 };
     }
 
-    // If no node is selected, place the new node below the last node
-    if (!selectedId) {
-      const lastNode = nodes[nodes.length - 1];
-      return {
-        x: lastNode.x,
-        y: lastNode.y + VERTICAL_SPACING
-      };
-    }
+    // Get the container's bounding rect
+    const rect = container.getBoundingClientRect();
+    
+    // Get the current transform state from data attributes
+    const scale = parseFloat(container.getAttribute('data-scale') || '1');
+    const positionX = parseFloat(container.getAttribute('data-position-x') || '0');
+    const positionY = parseFloat(container.getAttribute('data-position-y') || '0');
 
-    // If a node is selected, place the new node to the right of it
-    const selectedNode = nodes.find(n => n.id === selectedId);
-    if (!selectedNode) {
-      const lastNode = nodes[nodes.length - 1];
-      return {
-        x: lastNode.x,
-        y: lastNode.y + VERTICAL_SPACING
-      };
-    }
+    // Calculate the center of the viewport in graph coordinates
+    const viewportCenterX = (rect.width / 2 - positionX) / scale;
+    const viewportCenterY = (rect.height / 2 - positionY) / scale;
 
     return {
-      x: selectedNode.x + HORIZONTAL_SPACING,
-      y: selectedNode.y
+      x: viewportCenterX,
+      y: viewportCenterY
     };
   }, []);
 
