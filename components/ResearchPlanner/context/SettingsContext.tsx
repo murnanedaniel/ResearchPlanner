@@ -8,6 +8,7 @@ interface Settings {
     edgeMaxWidth: number;
     arrowSize: number;
     lineHeight: number;
+    hierarchyLevelScale: number;
 }
 
 interface SettingsContextType {
@@ -22,7 +23,8 @@ const defaultSettings: Settings = {
     maxFontSize: GRAPH_CONSTANTS.MAX_FONT_SIZE,
     edgeMaxWidth: GRAPH_CONSTANTS.EDGE_MAX_WIDTH,
     arrowSize: GRAPH_CONSTANTS.ARROW_SIZE,
-    lineHeight: GRAPH_CONSTANTS.LINE_HEIGHT
+    lineHeight: GRAPH_CONSTANTS.LINE_HEIGHT,
+    hierarchyLevelScale: GRAPH_CONSTANTS.HIERARCHY_LEVEL_SCALE
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);

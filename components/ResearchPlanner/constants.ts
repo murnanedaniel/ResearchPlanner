@@ -8,7 +8,8 @@ export const GRAPH_CONSTANTS = {
     EDGE_TEXT_PADDING: 15,
     EDGE_MAX_WIDTH: 150,
     LINE_HEIGHT: 1.2,
-    CANVAS_SIZE: 90000
+    CANVAS_SIZE: 90000,
+    HIERARCHY_LEVEL_SCALE: 0.8
 } as const;
 
 // Export a function to get the current value of a constant, which can be overridden by settings
@@ -34,6 +35,8 @@ export function getGraphConstant(key: keyof typeof GRAPH_CONSTANTS, settings?: a
             return settings.arrowSize ?? GRAPH_CONSTANTS.ARROW_SIZE;
         case 'LINE_HEIGHT':
             return settings.lineHeight ?? GRAPH_CONSTANTS.LINE_HEIGHT;
+        case 'HIERARCHY_LEVEL_SCALE':
+            return settings.hierarchyLevelScale ?? GRAPH_CONSTANTS.HIERARCHY_LEVEL_SCALE;
         default:
             return GRAPH_CONSTANTS[key];
     }

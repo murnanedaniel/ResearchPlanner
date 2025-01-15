@@ -95,6 +95,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
                         max={2}
                         step={0.1}
                     />
+                    <SettingItem
+                        label="Hierarchy Level Scale"
+                        value={settings.hierarchyLevelScale}
+                        onChange={(value) => updateSettings({ hierarchyLevelScale: value })}
+                        min={0.5}
+                        max={1}
+                        step={0.05}
+                    />
                 </div>
 
                 <div className="mt-6 flex justify-end gap-2">

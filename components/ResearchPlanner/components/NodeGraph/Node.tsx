@@ -78,11 +78,16 @@ export function Node({
     
     // Scale based on the node's level in the hierarchy
     const hierarchyLevel = getNodeLevel(node.id);
-    const levelScale = Math.pow(0.8, hierarchyLevel); // Each level is 80% of its parent
+    const hierarchyLevelScale = getGraphConstant('HIERARCHY_LEVEL_SCALE', settings);
+    const levelScale = Math.pow(hierarchyLevelScale, hierarchyLevel); // Scale based on settings
     const nodeScale = Math.min(Math.max(1 / scale, MIN_SCALE), MAX_SCALE) * levelScale;
     const nodeRadius = getGraphConstant('NODE_RADIUS', settings);
-    const scaledDiameter = nodeRadius * 2 * nodeScale;
-    const scaledRadius = nodeRadius * nodeScale;
+    const baseDiameter = nodeRadius * 2;  // Base size without scaling
+    const baseRadius = nodeRadius;        // Base size without scaling
+
+    // Calculate final dimensions for positioning
+    const finalDiameter = baseDiameter * nodeScale;
+    const finalRadius = baseRadius * nodeScale;
 
     // Use stored color or generate new one
     const hullColor = node.hullColor || getNextColor();
@@ -159,10 +164,10 @@ export function Node({
             ref={nodeRef}
             className={`absolute cursor-pointer ${isDragging ? 'opacity-50' : ''}`}
             style={{
-                left: node.x - scaledRadius,
-                top: node.y - scaledRadius,
-                width: scaledDiameter,
-                height: scaledDiameter,
+                left: node.x - finalRadius,
+                top: node.y - finalRadius,
+                width: finalDiameter,
+                height: finalDiameter,
                 zIndex: node.isExpanded ? 0 : (isSelected || isMultiSelected ? 2 : 1),
             }}
             draggable
@@ -186,8 +191,8 @@ export function Node({
                 >
                     {(() => {
                         const adjustedPoints = node.hullPoints.map(p => ({
-                            x: p.x - (node.x - scaledRadius) + 1000,
-                            y: p.y - (node.y - scaledRadius) + 1000
+                            x: p.x - (node.x - finalRadius) + 1000,
+                            y: p.y - (node.y - finalRadius) + 1000
                         }));
                         const topPoint = adjustedPoints.reduce((min, p) => p.y < min.y ? p : min);
 
@@ -254,24 +259,24 @@ export function Node({
                     <div className={`absolute rounded-full border-2 border-slate-300 bg-white
                         ${node.isObsolete ? 'opacity-40' : 'opacity-60'}`}
                         style={{
-                            width: scaledDiameter * 0.8,
-                            height: scaledDiameter * 0.8,
-                            transform: `translate(${4 * nodeScale * 0.8}px, ${4 * nodeScale * 0.8}px)`
+                            width: baseDiameter,
+                            height: baseDiameter,
+                            transform: `translate(${4 * baseRadius / nodeRadius}px, ${4 * baseRadius / nodeRadius}px) scale(${nodeScale})`
                         }}
                     />
                     <div className={`absolute rounded-full border-2 border-slate-300 bg-white
                         ${node.isObsolete ? 'opacity-45' : 'opacity-65'}`}
                         style={{
-                            width: scaledDiameter * 0.8,
-                            height: scaledDiameter * 0.8,
-                            transform: `translate(${2 * nodeScale * 0.8}px, ${2 * nodeScale * 0.8}px)`
+                            width: baseDiameter,
+                            height: baseDiameter,
+                            transform: `translate(${2 * baseRadius / nodeRadius}px, ${2 * baseRadius / nodeRadius}px) scale(${nodeScale})`
                         }}
                     />
                     <div className="absolute rounded-full border-2 border-slate-300 bg-white opacity-30"
                         style={{
-                            width: (scaledDiameter - (10 * nodeScale)) * 0.8,
-                            height: (scaledDiameter - (10 * nodeScale)) * 0.8,
-                            transform: `translate(${8 * nodeScale * 0.8}px, ${8 * nodeScale * 0.8}px)`
+                            width: baseDiameter,
+                            height: baseDiameter,
+                            transform: `translate(${8 * baseRadius / nodeRadius}px, ${8 * baseRadius / nodeRadius}px) scale(${nodeScale})`
                         }}
                     />
                 </>
@@ -289,8 +294,8 @@ export function Node({
                     ${node.isExpanded ? 'opacity-0' : node.isObsolete ? 'opacity-50' : 'opacity-100'}
                     bg-white shadow-md group hover:border-slate-400 transition-colors transition-opacity`}
                 style={{
-                    width: scaledDiameter,
-                    height: scaledDiameter,
+                    width: baseDiameter,
+                    height: baseDiameter,
                     transform: `scale(${nodeScale})`
                 }}
                 onClick={handleClick}
