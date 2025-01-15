@@ -3,12 +3,13 @@
 import React, { useRef, useState } from 'react';
 import { X, Ban, ChevronDown } from 'lucide-react';
 import type { GraphNode, Point } from '../../types/index';
-import { GRAPH_CONSTANTS } from '../../constants';
+import { GRAPH_CONSTANTS, getGraphConstant } from '../../constants';
 import { useTransformContext } from 'react-zoom-pan-pinch';
 import { ScalingText } from '../shared/ScalingText';
 import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from '../../utils/timeline';
 import type { TimelineConfig } from '../../utils/timeline';
 import { useColorGenerator } from '../../hooks/useColorGenerator';
+import { useSettings } from '../../context/SettingsContext';
 
 interface NodeProps {
     node: GraphNode;
@@ -62,6 +63,7 @@ export function Node({
     const nodeRef = useRef<HTMLDivElement>(null);
     const transformContext = useTransformContext();
     const { getNextColor } = useColorGenerator();
+    const { settings } = useSettings();
     
     // Calculate the hierarchy level of this node
     const getNodeLevel = (nodeId: number, visited = new Set<number>()): number => {
@@ -78,8 +80,9 @@ export function Node({
     const hierarchyLevel = getNodeLevel(node.id);
     const levelScale = Math.pow(0.8, hierarchyLevel); // Each level is 80% of its parent
     const nodeScale = Math.min(Math.max(1 / scale, MIN_SCALE), MAX_SCALE) * levelScale;
-    const scaledDiameter = GRAPH_CONSTANTS.NODE_DIAMETER * nodeScale;
-    const scaledRadius = GRAPH_CONSTANTS.NODE_RADIUS * nodeScale;
+    const nodeRadius = getGraphConstant('NODE_RADIUS', settings);
+    const scaledDiameter = nodeRadius * 2 * nodeScale;
+    const scaledRadius = nodeRadius * nodeScale;
 
     // Use stored color or generate new one
     const hullColor = node.hullColor || getNextColor();

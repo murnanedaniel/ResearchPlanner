@@ -45,47 +45,23 @@ export function SidePanel({
       />
 
       <MDXEditor
-        key={`${selectedNode?.id || 'node'}-${selectedEdge?.id || 'edge'}-${description}`}
+        key={`${selectedNode?.id || 'node'}-${selectedEdge?.id || 'edge'}`}
         markdown={description}
         onChange={onDescriptionChange}
+        contentEditableClassName="min-h-[200px] p-4 focus:outline-none prose prose-sm max-w-none"
         plugins={[
           headingsPlugin(),
-          listsPlugin({
-            checkboxClassName: 'form-checkbox h-4 w-4 text-blue-600',
-            enableCheckboxes: true,
-            syntax: {
-              task: true,
-              bullet: true,
-              ordered: true
-            }
-          }),
+          listsPlugin(),
           quotePlugin(),
-          markdownShortcutPlugin({
-            shortcuts: {
-              table: true,
-              thematicBreak: true,
-              bold: true,
-              italic: true,
-              link: true,
-              image: true,
-              list: {
-                unordered: true,
-                ordered: true,
-                checklist: true
-              }
-            }
-          }),
+          markdownShortcutPlugin(),
           tablePlugin(),
           thematicBreakPlugin(),
           linkPlugin(),
           imagePlugin(),
           frontmatterPlugin(),
-          codeBlockPlugin({
-            defaultCodeBlockLanguage: 'typescript'
-          }),
+          codeBlockPlugin(),
           diffSourcePlugin()
         ]}
-        contentEditableClassName="min-h-[200px] p-4 focus:outline-none prose prose-sm max-w-none font-mono"
       />
     </div>
   );

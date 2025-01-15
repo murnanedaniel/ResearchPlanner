@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { GRAPH_CONSTANTS } from '../../constants';
+import { GRAPH_CONSTANTS, getGraphConstant } from '../../constants';
+import { useSettings } from '../../context/SettingsContext';
 
 interface ScalingTextProps {
     text: string;
@@ -19,6 +20,7 @@ export function ScalingText({
     const containerRef = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLParagraphElement>(null);
     const [scale, setScale] = useState(1);
+    const { settings } = useSettings();
     
     useEffect(() => {
         if (!containerRef.current || !textRef.current) return;
@@ -29,7 +31,9 @@ export function ScalingText({
         // Temporarily remove transform to measure true height
         textElement.style.transform = '';
         
-        const lineHeight = GRAPH_CONSTANTS.MAX_FONT_SIZE * 1.2;
+        const maxFontSize = getGraphConstant('MAX_FONT_SIZE', settings);
+        const minFontSize = getGraphConstant('MIN_FONT_SIZE', settings);
+        const lineHeight = maxFontSize * getGraphConstant('LINE_HEIGHT', settings);
         const maxHeight = lineHeight * maxLines;
         
         // Check if content exceeds max height
@@ -37,7 +41,7 @@ export function ScalingText({
         
         if (contentHeight > maxHeight) {
             const newScale = maxHeight / contentHeight;
-            const minScale = GRAPH_CONSTANTS.MIN_FONT_SIZE / GRAPH_CONSTANTS.MAX_FONT_SIZE;
+            const minScale = minFontSize / maxFontSize;
             setScale(Math.max(newScale, minScale));
         } else {
             setScale(1);
@@ -45,14 +49,17 @@ export function ScalingText({
         
         // Restore transform based on current scale
         textElement.style.transform = `scale(${scale})`;
-    }, [text, maxLines]);
+    }, [text, maxLines, settings]);
+
+    const maxFontSize = getGraphConstant('MAX_FONT_SIZE', settings);
+    const lineHeight = maxFontSize * getGraphConstant('LINE_HEIGHT', settings);
 
     return (
         <div 
             ref={containerRef}
             className={`flex justify-center overflow-hidden ${verticalAlign === 'center' ? 'items-center' : 'items-start'} ${className}`}
             style={{ 
-                height: `${GRAPH_CONSTANTS.MAX_FONT_SIZE * 1.2 * maxLines}px`
+                height: `${lineHeight * maxLines}px`
             }}
         >
             <p 
@@ -62,7 +69,7 @@ export function ScalingText({
                     transform: `scale(${scale})`,
                     transformOrigin: verticalAlign === 'center' ? 'center center' : 'top center',
                     wordBreak: 'break-word',
-                    fontSize: `${GRAPH_CONSTANTS.MAX_FONT_SIZE}px`
+                    fontSize: `${maxFontSize}px`
                 }}
             >
                 {text}

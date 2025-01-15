@@ -13,6 +13,7 @@ import { useNodeOperations } from './hooks/useNodeOperations';
 import { useEdgeOperations } from './hooks/useEdgeOperations';
 import { calculateNodeHull } from './utils/hull';
 import { useColorGenerator } from './hooks/useColorGenerator';
+import { SettingsProvider } from './context/SettingsContext';
 
 export default function ResearchPlanner() {
   const { 
@@ -688,78 +689,80 @@ export default function ResearchPlanner() {
   }, [expandedNodes]);
 
   return (
-    <div className="flex h-full w-full bg-gray-50">
-      {/* Main Graph Area (2/3) */}
-      <div className="w-2/3 h-full p-4 flex flex-col">
-        <Toolbar
-          nodeTitle={newItemTitle}
-          onNodeTitleChange={setNewItemTitle}
-          onAddNode={handleAddNode}
-          onAddSubnode={handleAddSubnode}
-          onCollapseToNode={handleCollapseToNode}
-          selectedNodeId={selectedNode}
-          selectedNodes={selectedNodes}
-          isCreatingEdge={isCreatingEdge}
-          onToggleEdgeCreate={handleToggleEdgeCreate}
-          isAutocompleteModeActive={isAutocompleteModeActive}
-          onToggleAutocomplete={handleAutocompleteToggle}
-          autocompleteMode={autocompleteMode}
-          isAutocompleteLoading={isAutocompleteLoading}
-          isTimelineActive={timelineActive}
-          onTimelineToggle={setTimelineActive}
-          timelineStartDate={timelineStartDate}
-          onTimelineStartDateChange={setTimelineStartDate}
-        />
-        
-        <div className="flex-1 h-0">
-          <NodeGraph
-            nodes={nodes}
-            edges={edges}
-            selectedNode={selectedNode}
-            selectedEdge={selectedEdge}
-            isCreatingEdge={isCreatingEdge}
-            edgeStart={edgeStart}
-            onNodeClick={handleNodeClick}
-            onNodeEdit={handleEditNode}
-            onNodeDelete={handleNodeDelete}
-            onEdgeEdit={handleEditEdge}
-            onEdgeDelete={deleteEdge}
-            onEdgeCreate={handleEdgeCreate}
-            onNodeDragEnd={handleNodeDragEnd}
-            onNodesDragEnd={handleNodesDragEnd}
-            onMarkObsolete={markNodeObsolete}
-            selectedStartNodes={selectedStartNodes}
-            selectedGoalNodes={selectedGoalNodes}
-            isAutocompleteModeActive={isAutocompleteModeActive}
+    <SettingsProvider>
+      <div className="flex h-full w-full bg-gray-50">
+        {/* Main Graph Area (2/3) */}
+        <div className="w-2/3 h-full p-4 flex flex-col">
+          <Toolbar
+            nodeTitle={newItemTitle}
+            onNodeTitleChange={setNewItemTitle}
+            onAddNode={handleAddNode}
+            onAddSubnode={handleAddSubnode}
+            onCollapseToNode={handleCollapseToNode}
+            selectedNodeId={selectedNode}
             selectedNodes={selectedNodes}
-            onMultiSelect={handleMultiSelect}
-            expandedNodes={expandedNodes}
-            onNodeDragOver={handleNodeDragOver}
-            onNodeDrop={handleNodeDrop}
+            isCreatingEdge={isCreatingEdge}
+            onToggleEdgeCreate={handleToggleEdgeCreate}
+            isAutocompleteModeActive={isAutocompleteModeActive}
+            onToggleAutocomplete={handleAutocompleteToggle}
+            autocompleteMode={autocompleteMode}
+            isAutocompleteLoading={isAutocompleteLoading}
             isTimelineActive={timelineActive}
+            onTimelineToggle={setTimelineActive}
             timelineStartDate={timelineStartDate}
+            onTimelineStartDateChange={setTimelineStartDate}
           />
+          
+          <div className="flex-1 h-0">
+            <NodeGraph
+              nodes={nodes}
+              edges={edges}
+              selectedNode={selectedNode}
+              selectedEdge={selectedEdge}
+              isCreatingEdge={isCreatingEdge}
+              edgeStart={edgeStart}
+              onNodeClick={handleNodeClick}
+              onNodeEdit={handleEditNode}
+              onNodeDelete={handleNodeDelete}
+              onEdgeEdit={handleEditEdge}
+              onEdgeDelete={deleteEdge}
+              onEdgeCreate={handleEdgeCreate}
+              onNodeDragEnd={handleNodeDragEnd}
+              onNodesDragEnd={handleNodesDragEnd}
+              onMarkObsolete={markNodeObsolete}
+              selectedStartNodes={selectedStartNodes}
+              selectedGoalNodes={selectedGoalNodes}
+              isAutocompleteModeActive={isAutocompleteModeActive}
+              selectedNodes={selectedNodes}
+              onMultiSelect={handleMultiSelect}
+              expandedNodes={expandedNodes}
+              onNodeDragOver={handleNodeDragOver}
+              onNodeDrop={handleNodeDrop}
+              isTimelineActive={timelineActive}
+              timelineStartDate={timelineStartDate}
+            />
+          </div>
+
+          {/* File operations buttons */}
+          <div className="mt-4 flex gap-2">
+            <Button variant="outline" onClick={contextSaveToFile}>
+              Save to File
+            </Button>
+            <Button variant="outline" onClick={contextLoadFromFile}>
+              Load from File
+            </Button>
+          </div>
         </div>
 
-        {/* File operations buttons */}
-        <div className="mt-4 flex gap-2">
-          <Button variant="outline" onClick={contextSaveToFile}>
-            Save to File
-          </Button>
-          <Button variant="outline" onClick={contextLoadFromFile}>
-            Load from File
-          </Button>
-        </div>
+        {/* Side Panel (1/3) */}
+        <SidePanel
+          selectedNode={nodes.find(n => n.id === selectedNode) || null}
+          selectedEdge={edges.find(e => e.id === selectedEdge) || null}
+          description={tempDescription}
+          onDescriptionChange={handleDescriptionChange}
+          onTitleChange={handleTitleChange}
+        />
       </div>
-
-      {/* Side Panel (1/3) */}
-      <SidePanel
-        selectedNode={nodes.find(n => n.id === selectedNode) || null}
-        selectedEdge={edges.find(e => e.id === selectedEdge) || null}
-        description={tempDescription}
-        onDescriptionChange={handleDescriptionChange}
-        onTitleChange={handleTitleChange}
-      />
-    </div>
+    </SettingsProvider>
   );
 }

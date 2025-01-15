@@ -3,6 +3,10 @@
 - [X] Scrolling in the sidebar scrolls the whole page, not just the sidebar.
 - [X] Pressing delete while the text marker is in the sidebar deletes the whole node, not just the text.
 - [X] Collapsing a node's children doesn't collapse the childrens' children.
+- [X] MDX editor is not working: Type a character and the editor deselects, meaning we can't type. Also, the rendering of markdown doesn't seem to be working properly.
+  - Fixed by:
+    1. Removing description from editor key prop to prevent remounting
+    2. Adding proper styling and configuration
 - [ ] Dragging a node has an unpleasant UI appearance - as if it's not meant to be dragged (goes semi-opaque with the cursor showing a not-possible drag icon)
   - Attempted solutions:
     1. Modifying CSS classes for cursor and opacity:

@@ -9,4 +9,32 @@ export const GRAPH_CONSTANTS = {
     EDGE_MAX_WIDTH: 150,
     LINE_HEIGHT: 1.2,
     CANVAS_SIZE: 90000
-} as const; 
+} as const;
+
+// Export a function to get the current value of a constant, which can be overridden by settings
+export function getGraphConstant(key: keyof typeof GRAPH_CONSTANTS, settings?: any) {
+    // If no settings provided or settings is undefined, return default constant
+    if (!settings) {
+        return GRAPH_CONSTANTS[key];
+    }
+
+    // Handle each setting, falling back to default if the setting is undefined
+    switch (key) {
+        case 'NODE_RADIUS':
+            return settings.nodeRadius ?? GRAPH_CONSTANTS.NODE_RADIUS;
+        case 'NODE_DIAMETER':
+            return (settings.nodeRadius ?? GRAPH_CONSTANTS.NODE_RADIUS) * 2;
+        case 'MIN_FONT_SIZE':
+            return settings.minFontSize ?? GRAPH_CONSTANTS.MIN_FONT_SIZE;
+        case 'MAX_FONT_SIZE':
+            return settings.maxFontSize ?? GRAPH_CONSTANTS.MAX_FONT_SIZE;
+        case 'EDGE_MAX_WIDTH':
+            return settings.edgeMaxWidth ?? GRAPH_CONSTANTS.EDGE_MAX_WIDTH;
+        case 'ARROW_SIZE':
+            return settings.arrowSize ?? GRAPH_CONSTANTS.ARROW_SIZE;
+        case 'LINE_HEIGHT':
+            return settings.lineHeight ?? GRAPH_CONSTANTS.LINE_HEIGHT;
+        default:
+            return GRAPH_CONSTANTS[key];
+    }
+} 

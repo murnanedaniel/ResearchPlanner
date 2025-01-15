@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useTransformContext } from 'react-zoom-pan-pinch';
 import { getTimelineConfig, getPixelsPerUnit, dateToX, formatDate } from '../../utils/timeline';
 import type { TimelineConfig } from '../../utils/timeline';
-import { GRAPH_CONSTANTS } from '../../constants';
+import { GRAPH_CONSTANTS, getGraphConstant } from '../../constants';
+import { useSettings } from '../../context/SettingsContext';
 
 interface TimelineGridProps {
   startDate: Date;
@@ -18,6 +19,8 @@ interface TimelineGridProps {
 }
 
 export function TimelineGrid({ startDate, className = '', scale, transformState }: TimelineGridProps) {
+  const { settings } = useSettings();
+  
   // Calculate inverse scale to maintain constant text size
   const inverseScale = 1 / (transformState?.scale || 1);
   
@@ -96,6 +99,9 @@ export function TimelineGrid({ startDate, className = '', scale, transformState 
   const currentDateX = dateToX(new Date(), config);
   const { start, end } = calculateVisibleRange();
 
+  const maxFontSize = getGraphConstant('MAX_FONT_SIZE', settings);
+  const lineHeight = maxFontSize * getGraphConstant('LINE_HEIGHT', settings);
+
   return (
     <g className={`timeline-grid ${className}`}>
       {/* Grid lines */}
@@ -112,10 +118,14 @@ export function TimelineGrid({ startDate, className = '', scale, transformState 
           <text
             x={line.x}
             y={textY}
-            className="fill-slate-400 text-sm"
+            className="fill-slate-400"
             textAnchor="middle"
             transform={`scale(${inverseScale})`}
-            style={{ transformOrigin: `${line.x}px ${textY}px` }}
+            style={{ 
+              transformOrigin: `${line.x}px ${textY}px`,
+              fontSize: `${maxFontSize}px`,
+              lineHeight: `${lineHeight}px`
+            }}
           >
             {line.label}
           </text>
@@ -129,11 +139,15 @@ export function TimelineGrid({ startDate, className = '', scale, transformState 
           <text
             x={currentDateX - 10}
             y={todayLabelY}
-            className="fill-blue-500 text-sm font-medium"
+            className="fill-blue-500 font-medium"
             textAnchor="end"
             dominantBaseline="middle"
             transform={`scale(${inverseScale})`}
-            style={{ transformOrigin: `${currentDateX - 10}px ${todayLabelY}px` }}
+            style={{ 
+              transformOrigin: `${currentDateX - 10}px ${todayLabelY}px`,
+              fontSize: `${maxFontSize}px`,
+              lineHeight: `${lineHeight}px`
+            }}
           >
             Today
           </text>

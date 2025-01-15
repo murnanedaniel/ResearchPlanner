@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { GraphNode, Edge } from '../../types';
 import { Node as NodeComponent } from './Node';
-import { GRAPH_CONSTANTS } from '../../constants';
+import { GRAPH_CONSTANTS, getGraphConstant } from '../../constants';
 import { TransformWrapper, TransformComponent, useControls, useTransformContext } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { ScalingText } from '../shared/ScalingText';
 import { TimelineGrid } from './TimelineGrid';
 import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from '../../utils/timeline';
 import type { TimelineConfig } from '../../utils/timeline';
+import { useSettings } from '../../context/SettingsContext';
 
 function ZoomControls() {
   const { zoomIn, zoomOut, resetTransform } = useControls();
@@ -71,6 +72,7 @@ const WrappedEdgeLabel = ({ text, x1, y1, x2, y2, className = '' }: {
     y2: number;
     className?: string;
 }) => {
+    const { settings } = useSettings();
     const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
@@ -89,13 +91,16 @@ const WrappedEdgeLabel = ({ text, x1, y1, x2, y2, className = '' }: {
     const labelX = midX + perpX * offset;
     const labelY = midY + perpY * offset;
 
+    const edgeMaxWidth = getGraphConstant('EDGE_MAX_WIDTH', settings);
+    const maxFontSize = getGraphConstant('MAX_FONT_SIZE', settings);
+
     return (
         <g transform={`translate(${labelX},${labelY}) rotate(${angle < 90 && angle > -90 ? angle : angle + 180})`}>
             <foreignObject
-                x={-GRAPH_CONSTANTS.EDGE_MAX_WIDTH / 2}
-                y={-GRAPH_CONSTANTS.MAX_FONT_SIZE * 1.5}
-                width={GRAPH_CONSTANTS.EDGE_MAX_WIDTH}
-                height={GRAPH_CONSTANTS.MAX_FONT_SIZE * 5}
+                x={-edgeMaxWidth / 2}
+                y={-maxFontSize * 1.5}
+                width={edgeMaxWidth}
+                height={maxFontSize * 5}
             >
                 <div className="w-full h-full flex items-center justify-center">
                     <ScalingText 
@@ -139,6 +144,7 @@ function GraphContent({
     currentScale,
     transformState
 }: NodeGraphProps & { isCtrlPressed: boolean; currentScale: number; transformState: any }) {
+    const { settings } = useSettings();
     const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
     const transformContext = useTransformContext();
 
@@ -291,133 +297,84 @@ function GraphContent({
 
     return (
         <div 
-            className="relative"
-            style={{ width: `${GRAPH_CONSTANTS.CANVAS_SIZE}px`, height: `${GRAPH_CONSTANTS.CANVAS_SIZE}px` }}
+            className="w-full h-full relative graph-container"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
-            <svg className="absolute top-0 left-0 w-full h-full overflow-visible" style={{ zIndex: 0 }}>
-                <defs>
-                    <marker
-                        id="arrowhead"
-                        viewBox="0 0 10 10"
-                        refX="5"
-                        refY="5"
-                        markerWidth="6"
-                        markerHeight="6"
-                        orient="auto-start-reverse"
-                    >
-                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
-                    </marker>
-                </defs>
-
-                {/* Container Border */}
-                <rect
-                    x="0"
-                    y="0"
-                    width={GRAPH_CONSTANTS.CANVAS_SIZE}
-                    height={GRAPH_CONSTANTS.CANVAS_SIZE}
-                    fill="none"
-                    stroke="#94a3b8"
-                    strokeWidth="2"
-                    strokeDasharray="8 8"
-                />
-                
-                {/* Timeline Grid */}
+            <svg 
+                className="absolute inset-0 pointer-events-none"
+                style={{ width: `${GRAPH_CONSTANTS.CANVAS_SIZE}px`, height: `${GRAPH_CONSTANTS.CANVAS_SIZE}px` }}
+            >
+                {/* Timeline grid */}
                 {isTimelineActive && (
                     <TimelineGrid
                         startDate={timelineStartDate}
-                        className="pointer-events-none"
                         scale={currentScale}
-                        transformState={transformContext?.transformState}
+                        transformState={transformState}
                     />
                 )}
-                
-                {/* Selection Box */}
-                {selectionBox && (
-                    <rect
-                        x={Math.min(selectionBox.start.x, selectionBox.current.x)}
-                        y={Math.min(selectionBox.start.y, selectionBox.current.y)}
-                        width={Math.abs(selectionBox.current.x - selectionBox.start.x)}
-                        height={Math.abs(selectionBox.current.y - selectionBox.start.y)}
-                        className="fill-blue-100 fill-opacity-20 stroke-blue-500 stroke-2"
-                        style={{ pointerEvents: 'none' }}
-                        data-testid="selection-box"
-                    />
-                )}
-                
+
+                {/* Render edges */}
                 {visibleEdges.map(edge => {
                     const sourceNode = nodes.find(n => n.id === edge.source);
                     const targetNode = nodes.find(n => n.id === edge.target);
                     if (!sourceNode || !targetNode) return null;
 
-                    // Calculate the direction vector
+                    // Calculate unit vector
                     const dx = targetNode.x - sourceNode.x;
                     const dy = targetNode.y - sourceNode.y;
                     const length = Math.sqrt(dx * dx + dy * dy);
-
-                    // Normalize the direction vector
                     const unitDx = dx / length;
                     const unitDy = dy / length;
 
-                    // Adjust start and end points by node radius
-                    const startX = sourceNode.x + (unitDx * (GRAPH_CONSTANTS.NODE_RADIUS + GRAPH_CONSTANTS.ARROW_SIZE));
-                    const startY = sourceNode.y + (unitDy * (GRAPH_CONSTANTS.NODE_RADIUS + GRAPH_CONSTANTS.ARROW_SIZE));
-                    const endX = targetNode.x - (unitDx * (GRAPH_CONSTANTS.NODE_RADIUS + GRAPH_CONSTANTS.ARROW_SIZE));
-                    const endY = targetNode.y - (unitDy * (GRAPH_CONSTANTS.NODE_RADIUS + GRAPH_CONSTANTS.ARROW_SIZE));
+                    const nodeRadius = getGraphConstant('NODE_RADIUS', settings);
+                    const arrowSize = getGraphConstant('ARROW_SIZE', settings);
+                    const edgeStrokeWidth = getGraphConstant('EDGE_STROKE_WIDTH', settings);
+
+                    // Calculate start and end points with offset for node radius and arrow
+                    const startX = sourceNode.x + (unitDx * (nodeRadius + arrowSize));
+                    const startY = sourceNode.y + (unitDy * (nodeRadius + arrowSize));
+                    const endX = targetNode.x - (unitDx * (nodeRadius + arrowSize));
+                    const endY = targetNode.y - (unitDy * (nodeRadius + arrowSize));
+
+                    // Calculate arrow points
+                    const arrowX = endX;
+                    const arrowY = endY;
+                    const angle = Math.atan2(dy, dx);
+                    const arrowAngle = Math.PI / 6; // 30 degrees
+
+                    const arrowPoint1X = arrowX - arrowSize * Math.cos(angle - arrowAngle);
+                    const arrowPoint1Y = arrowY - arrowSize * Math.sin(angle - arrowAngle);
+                    const arrowPoint2X = arrowX - arrowSize * Math.cos(angle + arrowAngle);
+                    const arrowPoint2Y = arrowY - arrowSize * Math.sin(angle + arrowAngle);
+
+                    const isSelected = edge.id === selectedEdge;
+                    const strokeColor = edge.isObsolete ? '#ef4444' : (isSelected ? '#3b82f6' : '#94a3b8');
 
                     return (
-                        <g 
-                            key={edge.id}
-                            className="cursor-pointer group"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onEdgeEdit(edge);
-                            }}
-                        >
-                            {/* Invisible wider line for better click detection */}
+                        <g key={edge.id}>
+                            {/* Edge line */}
                             <line
                                 x1={startX}
                                 y1={startY}
                                 x2={endX}
                                 y2={endY}
-                                stroke="transparent"
-                                strokeWidth="20"
+                                stroke={strokeColor}
+                                strokeWidth={edgeStrokeWidth}
+                                strokeDasharray={edge.isPlanned ? '5,5' : 'none'}
                                 className="cursor-pointer"
+                                onClick={() => onEdgeEdit(edge)}
                             />
-                            {/* Visible line */}
-                            <line
-                                x1={startX}
-                                y1={startY}
-                                x2={endX}
-                                y2={endY}
-                                stroke="#64748b"
-                                strokeWidth="2"
-                                markerEnd="url(#arrowhead)"
-                                className={`group-hover:stroke-blue-500 ${edge.isObsolete ? 'opacity-50' : ''} ${edge.id === selectedEdge ? 'stroke-blue-500 stroke-[3]' : ''}`}
+                            {/* Arrow */}
+                            <path
+                                d={`M ${arrowX} ${arrowY} L ${arrowPoint1X} ${arrowPoint1Y} L ${arrowPoint2X} ${arrowPoint2Y} Z`}
+                                fill={strokeColor}
+                                className="cursor-pointer"
+                                onClick={() => onEdgeEdit(edge)}
                             />
-                            {/* Delete button */}
-                            <g
-                                transform={`translate(${(startX + endX) / 2},${(startY + endY) / 2})`}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onEdgeDelete(edge.id);
-                                }}
-                            >
-                                <circle
-                                    r="12"
-                                    fill="#ef4444"
-                                    className="stroke-white"
-                                />
-                                <path
-                                    d="M -6 -6 L 6 6 M -6 6 L 6 -6"
-                                    stroke="white"
-                                    strokeWidth="2"
-                                />
-                            </g>
+                            {/* Edge label */}
                             {edge.title && (
                                 <WrappedEdgeLabel
                                     text={edge.title}
@@ -425,12 +382,25 @@ function GraphContent({
                                     y1={startY}
                                     x2={endX}
                                     y2={endY}
-                                    className={edge.isObsolete ? 'opacity-50' : ''}
+                                    className={edge.isObsolete ? 'text-red-500' : ''}
                                 />
                             )}
                         </g>
                     );
                 })}
+
+                {/* Selection box */}
+                {selectionBox && (
+                    <rect
+                        x={Math.min(selectionBox.start.x, selectionBox.current.x)}
+                        y={Math.min(selectionBox.start.y, selectionBox.current.y)}
+                        width={Math.abs(selectionBox.current.x - selectionBox.start.x)}
+                        height={Math.abs(selectionBox.current.y - selectionBox.start.y)}
+                        fill="rgba(59, 130, 246, 0.1)"
+                        stroke="#3b82f6"
+                        strokeWidth="1"
+                    />
+                )}
             </svg>
 
             {visibleNodes.map(node => (
@@ -524,7 +494,7 @@ export function NodeGraph({
     }, []);
 
     return (
-        <div className="relative w-full h-full border border-gray-200 rounded-lg graph-container overflow-hidden bg-white shadow-sm">
+        <div className="relative w-full h-full border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
             <TransformWrapper
                 initialScale={1}
                 minScale={0.01}
@@ -539,53 +509,46 @@ export function NodeGraph({
                     excluded: ['node-drag-handle']
                 }}
                 onTransformed={(ref, state) => {
-                    // Single source of truth for all transform updates
                     setCurrentScale(state.scale);
                     setTransformState(state);
-                    
-                    // Update data attributes directly from transform state
-                    const container = document.querySelector('.graph-container');
-                    if (container) {
-                        container.setAttribute('data-scale', state.scale.toString());
-                        container.setAttribute('data-position-x', state.positionX.toString());
-                        container.setAttribute('data-position-y', state.positionY.toString());
-                    }
                 }}
             >
                 <TransformComponent
-                    wrapperClass="w-full h-full"
-                    contentClass="w-full h-full relative"
+                    wrapperStyle={{ width: '100%', height: '100%' }}
+                    contentStyle={{ width: '100%', height: '100%' }}
                 >
-                    <GraphContent
-                        nodes={nodes}
-                        edges={edges}
-                        selectedNode={selectedNode}
-                        selectedNodes={selectedNodes}
-                        selectedEdge={selectedEdge}
-                        isCreatingEdge={isCreatingEdge}
-                        edgeStart={edgeStart}
-                        onNodeClick={onNodeClick}
-                        onNodeEdit={onNodeEdit}
-                        onNodeDelete={onNodeDelete}
-                        onEdgeCreate={onEdgeCreate}
-                        onEdgeEdit={onEdgeEdit}
-                        onEdgeDelete={onEdgeDelete}
-                        onNodeDragEnd={onNodeDragEnd}
-                        onNodesDragEnd={onNodesDragEnd}
-                        onMarkObsolete={onMarkObsolete}
-                        selectedStartNodes={selectedStartNodes}
-                        selectedGoalNodes={selectedGoalNodes}
-                        isAutocompleteModeActive={isAutocompleteModeActive}
-                        onMultiSelect={onMultiSelect}
-                        expandedNodes={expandedNodes}
-                        onNodeDragOver={onNodeDragOver}
-                        onNodeDrop={onNodeDrop}
-                        isCtrlPressed={isCtrlPressed}
-                        isTimelineActive={isTimelineActive}
-                        timelineStartDate={timelineStartDate}
-                        currentScale={currentScale}
-                        transformState={transformState}
-                    />
+                    <div className="graph-container w-full h-full relative">
+                        <GraphContent
+                            nodes={nodes}
+                            edges={edges}
+                            selectedNode={selectedNode}
+                            selectedNodes={selectedNodes}
+                            selectedEdge={selectedEdge}
+                            isCreatingEdge={isCreatingEdge}
+                            edgeStart={edgeStart}
+                            onNodeClick={onNodeClick}
+                            onNodeEdit={onNodeEdit}
+                            onNodeDelete={onNodeDelete}
+                            onEdgeCreate={onEdgeCreate}
+                            onEdgeEdit={onEdgeEdit}
+                            onEdgeDelete={onEdgeDelete}
+                            onNodeDragEnd={onNodeDragEnd}
+                            onNodesDragEnd={onNodesDragEnd}
+                            onMarkObsolete={onMarkObsolete}
+                            selectedStartNodes={selectedStartNodes}
+                            selectedGoalNodes={selectedGoalNodes}
+                            isAutocompleteModeActive={isAutocompleteModeActive}
+                            onMultiSelect={onMultiSelect}
+                            expandedNodes={expandedNodes}
+                            onNodeDragOver={onNodeDragOver}
+                            onNodeDrop={onNodeDrop}
+                            isCtrlPressed={isCtrlPressed}
+                            isTimelineActive={isTimelineActive}
+                            timelineStartDate={timelineStartDate}
+                            currentScale={currentScale}
+                            transformState={transformState}
+                        />
+                    </div>
                 </TransformComponent>
                 <ZoomControls />
             </TransformWrapper>

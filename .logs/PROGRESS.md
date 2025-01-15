@@ -11,10 +11,36 @@
 - [ ] Double click to create node, (double click in hull to create child)
 - [ ] Remove requirement to enter title text before creation. In fact remove the title create node text box entirely - it's an antipattern
 - [ ] Add optional magnifier effect to all nodes in lens
+- [ ] Make all constants and variables configurable in a settings menu
 
 ## Completed Features
 
-### 1. Autocomplete (December 2023)
+### 1. Configurable Settings (March 2024)
+#### Completed
+- **Settings Context**
+  - Created SettingsContext for managing configurable values
+  - Added localStorage persistence for settings
+  - Added reset to defaults functionality
+
+- **Settings Panel**
+  - Added settings button to toolbar
+  - Created settings panel with sliders for each value
+  - Added min/max constraints for each setting
+
+- **Configurable Values**
+  - Node radius
+  - Min/max font sizes
+  - Edge max width
+  - Arrow size
+  - Line height
+
+- **Component Updates**
+  - Updated Node component to use settings
+  - Updated ScalingText to use settings
+  - Updated edge rendering to use settings
+  - Updated TimelineGrid to use settings
+
+### 2. Autocomplete (December 2023)
 #### Completed
 - **Selection & UI**
   - Autocomplete mode with start/goal node selection
@@ -49,7 +75,7 @@
 - Step-by-step node generation
 - Performance optimizations for large graphs
 
-### 2. Timeline (January 2024)
+### 3. Timeline (January 2024)
 #### Completed
 - **Core Functionality**
   - Timeline toggle in toolbar
