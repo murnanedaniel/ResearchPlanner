@@ -1,6 +1,18 @@
 # Research Planner Progress Log
 
-## Features
+## Planned Features
+
+- [ ] Add OAuth Google login
+- [ ] Add Google calendar API integration, where description also goes into event description
+- [ ] Add hourly history synced to cloud (need heroku database)
+- [ ] Add O(100) most recent graphs in session memory (store as updates?), reduce number of saves happening! Or, at least, only add to list on certain KINDS of saves
+- [ ] Add push-back feature: Hold alt and move, pushes all dependencies back by same amount
+- [ ] Fix drag node appearance
+- [ ] Double click to create node, (double click in hull to create child)
+- [ ] Remove requirement to enter title text before creation. In fact remove the title create node text box entirely - it's an antipattern
+- [ ] Add optional magnifier effect to all nodes in lens
+
+## Completed Features
 
 ### 1. Autocomplete (December 2023)
 #### Completed
@@ -62,21 +74,3 @@
   - Local storage integration
   - File export/import support
   - Session state management
-
-#### Planned Improvements
-- Timeline zoom controls
-- Timeline navigation
-- Node date labels
-- Multiple timeline views
-- Export options
-- Optimize grid rendering for performance
-- Scale node sizes with zoom level
-
-## Technical Debt & Optimizations
-- [ ] Lazy loading for large graphs
-- [ ] API response caching
-- [ ] Graph layout calculation optimization
-- [ ] Render performance improvements
-- [ ] State management refinement
-- [ ] Optimize timeline grid rendering
-- [ ] Implement node size scaling with zoom

@@ -32,8 +32,6 @@ export default function ResearchPlanner() {
   const [selectedEdge, setSelectedEdge] = useState<number | null>(null);
   const [editingNode, setEditingNode] = useState<GraphNode | null>(null);
   const [editingEdge, setEditingEdge] = useState<Edge | null>(null);
-  const [isNodeDialogOpen, setIsNodeDialogOpen] = useState(false);
-  const [isEdgeDialogOpen, setIsEdgeDialogOpen] = useState(false);
   const [tempDescription, setTempDescription] = useState('');
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   const [edgeStart, setEdgeStart] = useState<number | null>(null);
@@ -213,11 +211,10 @@ export default function ResearchPlanner() {
       }));
     }
 
-    // If we're editing in the dialog
+    // Remove dialog-related code
     if (node.description !== undefined) {
       setEditingNode(node);
       setTempDescription(node.description);
-      setIsNodeDialogOpen(true);
     }
   };
 
