@@ -12,6 +12,7 @@ import { useColorGenerator } from '../../hooks/useColorGenerator';
 
 interface NodeProps {
     node: GraphNode;
+    nodes: GraphNode[];
     isSelected: boolean;
     isMultiSelected: boolean;
     isCreatingEdge: boolean;
@@ -37,6 +38,7 @@ const MAX_SCALE = 1.0;  // Node won't get larger than 100% of original size
 
 export function Node({
     node,
+    nodes,
     isSelected,
     isMultiSelected,
     isCreatingEdge,
@@ -61,8 +63,21 @@ export function Node({
     const transformContext = useTransformContext();
     const { getNextColor } = useColorGenerator();
     
-    // Calculate the node scale based on zoom level
-    const nodeScale = Math.min(Math.max(1 / scale, MIN_SCALE), MAX_SCALE);
+    // Calculate the hierarchy level of this node
+    const getNodeLevel = (nodeId: number, visited = new Set<number>()): number => {
+        if (visited.has(nodeId)) return 0; // Prevent infinite loops
+        visited.add(nodeId);
+        
+        const currentNode = nodes.find(n => n.id === nodeId);
+        if (!currentNode?.parentId) return 0;
+        
+        return 1 + getNodeLevel(currentNode.parentId, visited);
+    };
+    
+    // Scale based on the node's level in the hierarchy
+    const hierarchyLevel = getNodeLevel(node.id);
+    const levelScale = Math.pow(0.8, hierarchyLevel); // Each level is 80% of its parent
+    const nodeScale = Math.min(Math.max(1 / scale, MIN_SCALE), MAX_SCALE) * levelScale;
     const scaledDiameter = GRAPH_CONSTANTS.NODE_DIAMETER * nodeScale;
     const scaledRadius = GRAPH_CONSTANTS.NODE_RADIUS * nodeScale;
 
@@ -193,14 +208,18 @@ export function Node({
                             <>
                                 <path
                                     d={`${smoothPath} Z`}
+                                    className={`
+                                        transition-opacity duration-150 ease-in-out
+                                        ${node.isExpanded ? 'cursor-pointer hover:[opacity:0.5]' : 'cursor-default'}
+                                        ${node.isExpanded ? '[opacity:0.3]' : '[opacity:0.1]'}
+                                    `}
                                     style={{ 
-                                        pointerEvents: 'auto',
+                                        pointerEvents: node.isExpanded ? 'auto' : 'none',
                                         fill: hullColor.fill,
-                                        stroke: hullColor.stroke,
-                                        opacity: node.isExpanded ? 0.3 : 0.1
+                                        stroke: hullColor.stroke
                                     }}
                                     strokeWidth="2"
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
                                         onNodeClick(node, e);
                                     }}
@@ -212,7 +231,7 @@ export function Node({
                                         textAnchor="middle"
                                         style={{ 
                                             fill: hullColor.stroke,
-                                            fontSize: `${14 * nodeScale}px`,
+                                            fontSize: `${14}px`,
                                             pointerEvents: 'none',
                                             userSelect: 'none',
                                             fontWeight: 500
@@ -232,24 +251,24 @@ export function Node({
                     <div className={`absolute rounded-full border-2 border-slate-300 bg-white
                         ${node.isObsolete ? 'opacity-40' : 'opacity-60'}`}
                         style={{
-                            width: scaledDiameter,
-                            height: scaledDiameter,
-                            transform: `translate(${4 * nodeScale}px, ${4 * nodeScale}px)`
+                            width: scaledDiameter * 0.8,
+                            height: scaledDiameter * 0.8,
+                            transform: `translate(${4 * nodeScale * 0.8}px, ${4 * nodeScale * 0.8}px)`
                         }}
                     />
                     <div className={`absolute rounded-full border-2 border-slate-300 bg-white
                         ${node.isObsolete ? 'opacity-45' : 'opacity-65'}`}
                         style={{
-                            width: scaledDiameter,
-                            height: scaledDiameter,
-                            transform: `translate(${2 * nodeScale}px, ${2 * nodeScale}px)`
+                            width: scaledDiameter * 0.8,
+                            height: scaledDiameter * 0.8,
+                            transform: `translate(${2 * nodeScale * 0.8}px, ${2 * nodeScale * 0.8}px)`
                         }}
                     />
                     <div className="absolute rounded-full border-2 border-slate-300 bg-white opacity-30"
                         style={{
-                            width: scaledDiameter - (10 * nodeScale),
-                            height: scaledDiameter - (10 * nodeScale),
-                            transform: `translate(${8 * nodeScale}px, ${8 * nodeScale}px)`
+                            width: (scaledDiameter - (10 * nodeScale)) * 0.8,
+                            height: (scaledDiameter - (10 * nodeScale)) * 0.8,
+                            transform: `translate(${8 * nodeScale * 0.8}px, ${8 * nodeScale * 0.8}px)`
                         }}
                     />
                 </>

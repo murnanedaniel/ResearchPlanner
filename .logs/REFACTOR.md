@@ -1,5 +1,13 @@
 # ResearchGraph Refactoring Plan
 
+## 2024-01-14: Remove Unused Dialog Components
+
+Removed unused legacy dialog components that were replaced by the SidePanel:
+- Removed `NodeDialog/` - functionality moved to SidePanel's NodeEditor
+- Removed `EdgeDialog/` - functionality moved to SidePanel's EdgeEditor
+- Removed `BreadcrumbNav/` - unused component
+- Cleaned up related state variables in ResearchPlanner.tsx
+
 ## Current Architecture Issues
 
 1. **Monolithic Component Structure**

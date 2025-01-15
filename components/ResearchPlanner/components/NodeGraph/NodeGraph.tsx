@@ -437,6 +437,7 @@ function GraphContent({
                 <NodeComponent
                     key={node.id}
                     node={node}
+                    nodes={nodes}
                     isSelected={node.id === selectedNode}
                     isMultiSelected={selectedNodes.has(node.id)}
                     isCreatingEdge={isCreatingEdge}
