@@ -1,20 +1,9 @@
 import { useCallback } from 'react';
-import { GraphNode, Edge, GraphData } from '../types';
+import { GraphData, GraphNode } from '../types';
 
 export function useGraphPersistence() {
-  const saveGraph = useCallback((
-    nodes: GraphNode[], 
-    edges: Edge[],
-    timelineActive?: boolean,
-    timelineStartDate?: Date
-  ) => {
+  const saveGraph = useCallback((data: GraphData) => {
     try {
-      const data: GraphData = { 
-        nodes, 
-        edges,
-        timelineActive,
-        timelineStartDate: timelineStartDate?.toISOString()
-      };
       const serialized = JSON.stringify(data);
       console.log('Saving graph:', data);
       localStorage.setItem('research-graph', serialized);
@@ -31,27 +20,31 @@ export function useGraphPersistence() {
         console.log('No saved graph found');
         return null;
       }
-      const parsed = JSON.parse(data) as GraphData;
-      console.log('Parsed graph data:', parsed);
-      return parsed;
+      
+      // Parse the data
+      const parsed = JSON.parse(data);
+      
+      // Handle old format (array of nodes)
+      if (Array.isArray(parsed)) {
+        console.log('Converting old format to new format');
+        return {
+          nodes: parsed as GraphNode[],
+          edges: [],
+          timelineActive: false,
+          timelineStartDate: new Date().toISOString(),
+          expandedNodes: []
+        };
+      }
+      
+      // Handle new format
+      return parsed as GraphData;
     } catch (error) {
       console.error('Failed to load graph:', error);
       return null;
     }
   }, []);
 
-  const saveToFile = useCallback((
-    nodes: GraphNode[], 
-    edges: Edge[],
-    timelineActive?: boolean,
-    timelineStartDate?: Date
-  ) => {
-    const data: GraphData = { 
-      nodes, 
-      edges,
-      timelineActive,
-      timelineStartDate: timelineStartDate?.toISOString()
-    };
+  const saveToFile = useCallback((data: GraphData) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -80,8 +73,22 @@ export function useGraphPersistence() {
         reader.onload = (e) => {
           try {
             const content = e.target?.result as string;
-            const data = JSON.parse(content) as GraphData;
-            resolve(data);
+            const parsed = JSON.parse(content);
+            
+            // Handle old format (array of nodes)
+            if (Array.isArray(parsed)) {
+              resolve({
+                nodes: parsed as GraphNode[],
+                edges: [],
+                timelineActive: false,
+                timelineStartDate: new Date().toISOString(),
+                expandedNodes: []
+              });
+              return;
+            }
+            
+            // Handle new format
+            resolve(parsed as GraphData);
           } catch (error) {
             console.error('Failed to parse file:', error);
             resolve(null);

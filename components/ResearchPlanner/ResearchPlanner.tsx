@@ -4,15 +4,28 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { NodeGraph } from './components/NodeGraph/NodeGraph';
 import { SidePanel } from './components/SidePanel/SidePanel';
-import { GraphNode, Edge } from './types';
+import { GraphNode, Edge, GraphData } from './types/index';
 import { useLayoutManager } from './hooks/useLayoutManager';
-import { useGraphPersistence } from './hooks/useGraphPersistence';
 import { Button } from '@/components/ui/button';
 import { useIdGenerator } from './hooks/useIdGenerator';
+import { useGraphState } from './context/GraphContext';
+import { useNodeOperations } from './hooks/useNodeOperations';
+import { useEdgeOperations } from './hooks/useEdgeOperations';
+import { calculateNodeHull } from './utils/hull';
+import { useColorGenerator } from './hooks/useColorGenerator';
 
 export default function ResearchPlanner() {
-  const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  const { 
+    nodes, edges, setNodes, setEdges,
+    timelineActive, timelineStartDate,
+    setTimelineActive, setTimelineStartDate,
+    saveToFile: contextSaveToFile,
+    loadFromFile: contextLoadFromFile
+  } = useGraphState();
+  
+  const { addNode, deleteNode, markNodeObsolete, updateNode } = useNodeOperations();
+  const { createEdge, deleteEdge, updateEdge } = useEdgeOperations();
+  
   const [newItemTitle, setNewItemTitle] = useState('');
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<Set<number>>(new Set());
@@ -26,6 +39,19 @@ export default function ResearchPlanner() {
   const [edgeStart, setEdgeStart] = useState<number | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
 
+  // Initialize expandedNodes from loaded graph data
+  useEffect(() => {
+    if (nodes.length > 0) {
+      // Get all nodes that are marked as expanded
+      const expandedNodeIds = nodes
+        .filter(node => node.isExpanded)
+        .map(node => node.id);
+      
+      // Update expandedNodes state
+      setExpandedNodes(new Set(expandedNodeIds));
+    }
+  }, [nodes]);
+
   // New autocomplete states
   const [isAutocompleteModeActive, setAutocompleteModeActive] = useState(false);
   const [autocompleteMode, setAutocompleteMode] = useState<'start' | 'goal' | null>(null);
@@ -33,12 +59,9 @@ export default function ResearchPlanner() {
   const [selectedGoalNodes, setSelectedGoalNodes] = useState<number[]>([]);
   const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
 
-  const [isTimelineActive, setIsTimelineActive] = useState(false);
-  const [timelineStartDate, setTimelineStartDate] = useState(new Date());
-
   const { arrangeNodes, getNewNodePosition } = useLayoutManager();
-  const { saveGraph, loadGraph, saveToFile, loadFromFile } = useGraphPersistence();
   const { getNextId, initializeWithExistingIds } = useIdGenerator();
+  const { getNextColor } = useColorGenerator();
 
   // Add ref for tracking latest selection
   const latestSelectionRef = useRef<{
@@ -46,129 +69,41 @@ export default function ResearchPlanner() {
     edge: number | null;
   }>({ node: null, edge: null });
 
-  const saveGraphState = useCallback(() => {
-    if (nodes.length > 0 || edges.length > 0) {
-      saveGraph(nodes, edges, isTimelineActive, timelineStartDate);
-    }
-  }, [nodes, edges, saveGraph, isTimelineActive, timelineStartDate]);
-
-  useEffect(() => {
-    const data = loadGraph();
-    if (data) {
-      // First, set up the expandedNodes set from the saved data
-      const expandedNodeIds = new Set<number>();
-      data.nodes.forEach(node => {
-        if (node.isExpanded) {
-          expandedNodeIds.add(node.id);
-        }
-      });
-      setExpandedNodes(expandedNodeIds);
-
-      // Then set nodes, ensuring their isExpanded state matches the expandedNodes set
-      setNodes(data.nodes.map(node => ({
-        ...node,
-        isExpanded: expandedNodeIds.has(node.id)
-      })));
-      
-      setEdges(data.edges);
-      if (data.timelineActive !== undefined) {
-        setIsTimelineActive(data.timelineActive);
-      }
-      if (data.timelineStartDate) {
-        setTimelineStartDate(new Date(data.timelineStartDate));
-      }
-      // Initialize ID generator with existing IDs
-      initializeWithExistingIds([
-        ...data.nodes.map(n => n.id),
-        ...data.edges.map(e => e.id)
-      ]);
-    }
-  }, [loadGraph, initializeWithExistingIds]);
-
-  // Add initial mount effect
-  useEffect(() => {
-    const savedData = loadGraph();
-    if (savedData && savedData.nodes.length > 0) {
-      // If there's a selected node, set its description
-      if (selectedNode !== null) {
-        const node = savedData.nodes.find(n => n.id === selectedNode);
-        if (node) {
-          console.log('Initial mount: Setting description for selected node:', node.description);
-          setTempDescription(node.description || '');
-        }
-      }
-    }
-  }, []); // Only run once on mount
-
-  // Modify the description sync effect to use the ref
+  // Keep the description sync effect
   useEffect(() => {
     const { node: selectedNodeId, edge: selectedEdgeId } = latestSelectionRef.current;
     
     if (selectedNodeId !== null) {
       const node = nodes.find(n => n.id === selectedNodeId);
       if (node) {
-        console.log('Syncing description for selected node:', node.description);
         setTempDescription(node.description || '');
       }
-    } else if (selectedEdgeId !== null) {
-      const edge = edges.find(e => e.id === selectedEdgeId);
+    } else if (selectedEdgeId !== null || selectedEdge !== null) {
+      const edgeId = selectedEdgeId || selectedEdge;
+      const edge = edges.find(e => e.id === edgeId);
       if (edge) {
-        console.log('Syncing description for selected edge:', edge.description);
         setTempDescription(edge.description || '');
       }
+    } else {
+      setTempDescription('');
     }
-  }, [nodes, edges]); // Only depend on data changes, not selection changes
+  }, [nodes, edges, selectedEdge]);
 
-  const addNode = () => {
+  const handleAddNode = () => {
     if (!newItemTitle.trim()) return;
-    
-    const position = getNewNodePosition(nodes, selectedNode || undefined);
-    const id = getNextId();
-    const newNode: GraphNode = {
-      id,
-      title: newItemTitle,
-      x: position.x,
-      y: position.y,
-      description: '',
-      isObsolete: false
-    };
-
-    setNodes(prevNodes => [...prevNodes, newNode]);
+    addNode(newItemTitle, selectedNode || undefined);
     setNewItemTitle('');
   };
 
   const handleNodeDelete = useCallback((id: number) => {
-    console.log('Deleting node:', id);
-    console.log('Current nodes before deletion:', nodes);
-    
-    setNodes(prevNodes => {
-      // Find the node being deleted
-      const nodeToDelete = prevNodes.find(n => n.id === id);
-      console.log('Node to delete:', nodeToDelete);
-      
-      // Log child nodes if any
-      if (nodeToDelete?.childNodes?.length) {
-        console.log('Child nodes that will remain:', nodeToDelete.childNodes);
-      }
-      
-      const newNodes = prevNodes.filter(node => node.id !== id);
-      console.log('Nodes after deletion:', newNodes);
-      
-      setEdges(prevEdges => {
-        const newEdges = prevEdges.filter(edge => edge.source !== id && edge.target !== id);
-        // Save the new state immediately
-        saveGraph(newNodes, newEdges);
-        return newEdges;
-      });
-      return newNodes;
-    });
+    deleteNode(id);
     setSelectedNode(null);
     setSelectedNodes(prev => {
       const newSet = new Set(prev);
       newSet.delete(id);
       return newSet;
     });
-  }, [saveGraph]);
+  }, [deleteNode]);
 
   const handleNodeClick = (node: GraphNode, event?: React.MouseEvent) => {
     if (isCreatingEdge) {
@@ -201,13 +136,14 @@ export default function ResearchPlanner() {
     // Update ref first
     latestSelectionRef.current = { node: node.id, edge: null };
     
-    // Update description immediately from the node data
+    // Always set description to node's description (even if empty)
     setTempDescription(node.description || '');
     
     // Then update selection state
     setSelectedNode(node.id);
     setSelectedNodes(new Set([node.id]));
     setSelectedEdge(null);
+    setEditingEdge(null);  // Ensure we clear any editing edge state
   };
 
   const handleMultiSelect = useCallback((nodeIds: number[]) => {
@@ -298,19 +234,48 @@ export default function ResearchPlanner() {
     setSelectedEdge(edge.id);
   };
 
-  const handleNodeDragEnd = (id: number, newX: number, newY: number) => {
-    // Single node movement
-    const updatedNodes = nodes.map(node => {
-      if (node.id === id) {
-        return { ...node, x: newX, y: newY };
-      }
-      return node;
-    });
-    setNodes(updatedNodes);
+  const handleNodeDragEnd = (id: number, x: number, y: number) => {
+    const node = nodes.find(n => n.id === id);
+    if (!node) return;
+
+    // Update the dragged node
+    const updatedNode = { ...node, x, y };
+
+    // If this is a child node, update parent's hull
+    if (node.parentId) {
+        const parentNode = nodes.find(n => n.id === node.parentId);
+        if (parentNode) {
+            const siblingNodes = nodes.filter(n => n.parentId === node.parentId);
+            const updatedParent = {
+                ...parentNode,
+                hullPoints: calculateNodeHull(parentNode, [
+                    ...siblingNodes.filter(n => n.id !== id),
+                    updatedNode
+                ])
+            };
+            
+            setNodes(prev => [
+                ...prev.filter(n => n.id !== id && n.id !== node.parentId),
+                updatedParent,
+                updatedNode
+            ]);
+            return;
+        }
+    }
+
+    // If this is a parent node, update its own hull
+    if (node.childNodes?.length) {
+        const childNodes = nodes.filter(n => node.childNodes?.includes(n.id));
+        updatedNode.hullPoints = calculateNodeHull(updatedNode, childNodes);
+    }
+
+    setNodes(prev => [
+        ...prev.filter(n => n.id !== id),
+        updatedNode
+    ]);
   };
 
   const handleNodesDragEnd = (updates: { id: number; x: number; y: number }[]) => {
-    // Batch update multiple nodes
     setNodes(prevNodes => {
       const updatedNodes = [...prevNodes];
       updates.forEach(update => {
@@ -327,23 +292,10 @@ export default function ResearchPlanner() {
     if (edgeStart === null) {
       setEdgeStart(nodeId);
     } else if (edgeStart !== nodeId) {
-      const newEdge: Edge = {
-        id: getNextId(),
-        source: edgeStart,
-        target: nodeId,
-        title: '',
-        description: '',
-        isPlanned: true,
-        isObsolete: false
-      };
-      setEdges(prevEdges => [...prevEdges, newEdge]);
+      createEdge(edgeStart, nodeId);
       setIsCreatingEdge(false);
       setEdgeStart(null);
     }
-  };
-
-  const deleteEdge = (edgeId: number) => {
-    setEdges(edges.filter(edge => edge.id !== edgeId));
   };
 
   const handleToggleEdgeCreate = () => {
@@ -352,119 +304,21 @@ export default function ResearchPlanner() {
   };
 
   const handleDescriptionChange = (value: string) => {
-    console.log('Description changed:', value);
-    
     if (selectedNode !== null) {
-      console.log('Updating node description:', selectedNode, value);
-      setNodes(prevNodes => {
-        const updatedNodes = prevNodes.map(node => 
-          node.id === selectedNode 
-            ? { ...node, description: value }
-            : node
-        );
-        // Save immediately after updating description
-        saveGraphState();
-        return updatedNodes;
-      });
+      updateNode(selectedNode, { description: value });
       setTempDescription(value);
     } else if (selectedEdge !== null) {
-      console.log('Updating edge description:', selectedEdge, value);
-      setEdges(prevEdges => {
-        const updatedEdges = prevEdges.map(edge => 
-          edge.id === selectedEdge
-            ? { ...edge, description: value }
-            : edge
-        );
-        // Save immediately after updating description
-        saveGraphState();
-        return updatedEdges;
-      });
+      updateEdge(selectedEdge, { description: value });
       setTempDescription(value);
     }
   };
 
   const handleTitleChange = (value: string) => {
     if (selectedNode !== null) {
-      setNodes(nodes.map(node => 
-        node.id === selectedNode 
-          ? { ...node, title: value }
-          : node
-      ));
+      updateNode(selectedNode, { title: value });
     } else if (selectedEdge !== null) {
-      setEdges(edges.map(edge => 
-        edge.id === selectedEdge
-          ? { ...edge, title: value }
-          : edge
-      ));
+      updateEdge(selectedEdge, { title: value });
     }
-  };
-
-  const handleSaveToFile = useCallback(() => {
-    saveToFile(nodes, edges, isTimelineActive, timelineStartDate);
-  }, [nodes, edges, saveToFile, isTimelineActive, timelineStartDate]);
-
-  const handleLoadFromFile = useCallback(async () => {
-    const data = await loadFromFile();
-    if (data) {
-      setNodes(data.nodes);
-      setEdges(data.edges);
-      if (data.timelineActive !== undefined) {
-        setIsTimelineActive(data.timelineActive);
-      }
-      if (data.timelineStartDate) {
-        setTimelineStartDate(new Date(data.timelineStartDate));
-      }
-      // Initialize ID generator with loaded IDs
-      initializeWithExistingIds([
-        ...data.nodes.map(n => n.id),
-        ...data.edges.map(e => e.id)
-      ]);
-    }
-  }, [loadFromFile, initializeWithExistingIds]);
-
-  const getDownstreamNodes = (startNodeId: number, nodes: GraphNode[], edges: Edge[]): Set<number> => {
-    const downstream = new Set<number>([startNodeId]);
-    const queue = [startNodeId];
-    
-    while (queue.length > 0) {
-      const currentId = queue.shift()!;
-      
-      edges
-        .filter(edge => edge.source === currentId)
-        .forEach(edge => {
-          if (!downstream.has(edge.target)) {
-            downstream.add(edge.target);
-            queue.push(edge.target);
-          }
-        });
-    }
-    
-    return downstream;
-  };
-
-  const markNodeObsolete = (nodeId: number) => {
-    const targetNode = nodes.find(n => n.id === nodeId);
-    if (!targetNode) return;
-
-    // Toggle obsolete state
-    const newObsoleteState = !targetNode.isObsolete;
-    const downstreamNodes = getDownstreamNodes(nodeId, nodes, edges);
-    
-    setNodes(nodes.map(node => ({
-      ...node,
-      // Only update if node is in downstream path
-      isObsolete: downstreamNodes.has(node.id) 
-        ? newObsoleteState  // Set to new state if in downstream path
-        : node.isObsolete   // Keep existing state if not in downstream path
-    })));
-    
-    setEdges(edges.map(edge => ({
-      ...edge,
-      // Update if either source or target is in downstream path
-      isObsolete: (downstreamNodes.has(edge.source) || downstreamNodes.has(edge.target))
-        ? newObsoleteState  // Set to new state if connected to downstream path
-        : edge.isObsolete   // Keep existing state if not connected
-    })));
   };
 
   // New autocomplete handlers
@@ -604,27 +458,38 @@ export default function ResearchPlanner() {
     
     // Create the child node
     const newNode: GraphNode = {
-      id,
-      title: newItemTitle.trim(),
-      description: '',
-      x: position.x,
-      y: position.y,
-      isObsolete: false,
-      parentId: selectedNode,
-      childNodes: [],
+        id,
+        title: newItemTitle.trim(),
+        description: '',
+        x: position.x,
+        y: position.y,
+        isObsolete: false,
+        parentId: selectedNode,
+        childNodes: [],
     };
+
+    // Get all child nodes including the new one
+    const childNodes = [
+        ...nodes.filter(n => n.parentId === selectedNode),
+        newNode
+    ];
+
+    // Calculate hull points
+    const hullPoints = calculateNodeHull(parentNode, childNodes);
 
     // Update the parent node
     const updatedParent: GraphNode = {
-      ...parentNode,
-      childNodes: [...(parentNode.childNodes || []), id],
-      isExpanded: true,
+        ...parentNode,
+        childNodes: [...(parentNode.childNodes || []), id],
+        isExpanded: true,
+        hullPoints,
+        hullColor: parentNode.hullColor || getNextColor()  // Use existing color or generate new one
     };
 
     setNodes(prev => [
-      ...prev.filter(n => n.id !== selectedNode),
-      updatedParent,
-      newNode,
+        ...prev.filter(n => n.id !== selectedNode),
+        updatedParent,
+        newNode,
     ]);
 
     // Expand the parent node
@@ -700,6 +565,10 @@ export default function ResearchPlanner() {
     console.log('Collapsing nodes to parent. Selected nodes:', Array.from(selectedNodes));
     console.log('Current nodes before collapse:', nodes);
 
+    // Initialize ID generator with existing IDs to ensure uniqueness
+    const existingIds = nodes.map(n => n.id);
+    initializeWithExistingIds(existingIds);
+
     const selectedNodesList = Array.from(selectedNodes);
     const selectedNodeObjects = nodes.filter(n => selectedNodes.has(n.id));
     console.log('Selected node objects:', selectedNodeObjects);
@@ -708,7 +577,7 @@ export default function ResearchPlanner() {
     const avgX = selectedNodeObjects.reduce((sum, n) => sum + n.x, 0) / selectedNodeObjects.length;
     const avgY = selectedNodeObjects.reduce((sum, n) => sum + n.y, 0) / selectedNodeObjects.length;
 
-    // Create the parent node
+    // Create the parent node with a guaranteed unique ID
     const parentNode: GraphNode = {
       id: getNextId(),
       title: newItemTitle.trim(),
@@ -718,7 +587,13 @@ export default function ResearchPlanner() {
       isObsolete: false,
       childNodes: selectedNodesList,
       isExpanded: true,
+      hullColor: getNextColor()  // Set the hull color when creating the parent node
     };
+
+    // Calculate hull points for the parent
+    const hullPoints = calculateNodeHull(parentNode, selectedNodeObjects);
+    parentNode.hullPoints = hullPoints;
+
     console.log('Created parent node:', parentNode);
 
     // Update child nodes with parentId
@@ -771,33 +646,49 @@ export default function ResearchPlanner() {
       parentId: targetId
     };
 
-    // Update the target node's childNodes array
+    // Update the target node's childNodes array and mark as expanded
     const updatedTargetNode = {
       ...targetNode,
       childNodes: [...(targetNode.childNodes || []), sourceId],
       isExpanded: true
     };
 
-    // Update nodes array
+    // Update nodes array and ensure isExpanded is set correctly for all nodes
     setNodes(prev => prev.map(node => {
       if (node.id === sourceId) return updatedSourceNode;
       if (node.id === targetId) return updatedTargetNode;
-      return node;
+      // For all other nodes, ensure isExpanded matches the expandedNodes set
+      return {
+        ...node,
+        isExpanded: expandedNodes.has(node.id)
+      };
     }));
 
     // Ensure the parent node is expanded
     setExpandedNodes(prev => new Set([...Array.from(prev), targetId]));
   };
 
-  // Add a useEffect to log state changes
-  useEffect(() => {
-    console.log('Timeline state changed:', isTimelineActive);
-  }, [isTimelineActive]);
+  const onToggleExpand = useCallback((nodeId: number) => {
+    setNodes(prev => prev.map(node => {
+      if (node.id === nodeId) {
+        return {
+          ...node,
+          isExpanded: !expandedNodes.has(nodeId)
+        };
+      }
+      return node;
+    }));
 
-  // Add effect to save on timeline state changes
-  useEffect(() => {
-    saveGraphState();
-  }, [isTimelineActive, timelineStartDate, saveGraphState]);
+    setExpandedNodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      return newSet;
+    });
+  }, [expandedNodes]);
 
   return (
     <div className="flex h-full w-full bg-gray-50">
@@ -806,7 +697,7 @@ export default function ResearchPlanner() {
         <Toolbar
           nodeTitle={newItemTitle}
           onNodeTitleChange={setNewItemTitle}
-          onAddNode={addNode}
+          onAddNode={handleAddNode}
           onAddSubnode={handleAddSubnode}
           onCollapseToNode={handleCollapseToNode}
           selectedNodeId={selectedNode}
@@ -817,8 +708,8 @@ export default function ResearchPlanner() {
           onToggleAutocomplete={handleAutocompleteToggle}
           autocompleteMode={autocompleteMode}
           isAutocompleteLoading={isAutocompleteLoading}
-          isTimelineActive={isTimelineActive}
-          onTimelineToggle={setIsTimelineActive}
+          isTimelineActive={timelineActive}
+          onTimelineToggle={setTimelineActive}
           timelineStartDate={timelineStartDate}
           onTimelineStartDateChange={setTimelineStartDate}
         />
@@ -828,6 +719,7 @@ export default function ResearchPlanner() {
             nodes={nodes}
             edges={edges}
             selectedNode={selectedNode}
+            selectedEdge={selectedEdge}
             isCreatingEdge={isCreatingEdge}
             edgeStart={edgeStart}
             onNodeClick={handleNodeClick}
@@ -847,17 +739,17 @@ export default function ResearchPlanner() {
             expandedNodes={expandedNodes}
             onNodeDragOver={handleNodeDragOver}
             onNodeDrop={handleNodeDrop}
-            isTimelineActive={isTimelineActive}
+            isTimelineActive={timelineActive}
             timelineStartDate={timelineStartDate}
           />
         </div>
 
         {/* File operations buttons */}
         <div className="mt-4 flex gap-2">
-          <Button variant="outline" onClick={handleSaveToFile}>
+          <Button variant="outline" onClick={contextSaveToFile}>
             Save to File
           </Button>
-          <Button variant="outline" onClick={handleLoadFromFile}>
+          <Button variant="outline" onClick={contextLoadFromFile}>
             Load from File
           </Button>
         </div>

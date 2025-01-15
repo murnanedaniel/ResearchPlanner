@@ -45,7 +45,7 @@ export function SidePanel({
       />
 
       <MDXEditor
-        key={selectedNode?.id || selectedEdge?.id || 'no-selection'}
+        key={`${selectedNode?.id || 'node'}-${selectedEdge?.id || 'edge'}-${description}`}
         markdown={description}
         onChange={onDescriptionChange}
         plugins={[

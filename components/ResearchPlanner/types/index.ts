@@ -1,3 +1,8 @@
+export interface Point {
+  x: number;
+  y: number;
+}
+
 export interface GraphNode {
     id: number;
     title: string;
@@ -6,9 +11,11 @@ export interface GraphNode {
     y: number;
     isObsolete: boolean;
     files?: FileAttachment[];
-    parentId?: number | null;
+    parentId?: number;
     childNodes?: number[];
     isExpanded?: boolean;
+    hullPoints?: Point[];
+    hullColor?: { fill: string; stroke: string; };
   }
   
   export interface FileAttachment {
@@ -29,8 +36,8 @@ export interface GraphNode {
   }
   
   export interface SelectionBox {
-    start: { x: number; y: number };
-    current: { x: number; y: number };
+    start: Point;
+    current: Point;
   }
   
   export type NodeClickHandler = (node: GraphNode, event?: React.MouseEvent) => void;
@@ -40,4 +47,5 @@ export interface GraphNode {
     edges: Edge[];
     timelineActive?: boolean;
     timelineStartDate?: string;  // ISO string format for date
+    expandedNodes?: number[];  // Add expanded nodes to persisted data
   }
