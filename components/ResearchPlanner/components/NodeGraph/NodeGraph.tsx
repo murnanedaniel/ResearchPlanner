@@ -221,8 +221,8 @@ function GraphContent({
     };
 
     const handleNodeDragEnd = (id: number, x: number, y: number) => {
-        console.log('Node drag end:', { id, x, y });
-        console.log('Selected nodes:', Array.from(selectedNodes));
+        console.log('\n=== NodeGraph Drag End ===');
+        console.log('Initial position:', { id, x, y });
         
         // Find the dragged node to calculate the delta
         const draggedNode = nodes.find(n => n.id === id);
@@ -232,10 +232,28 @@ function GraphContent({
         }
 
         // x and y are now center coordinates
-        console.log('Dragged node:', draggedNode);
-        const deltaX = x - draggedNode.x;  // draggedNode.x is already center position
+        console.log('Dragged node current position:', {
+            id: draggedNode.id,
+            x: draggedNode.x,
+            y: draggedNode.y
+        });
+        
+        const deltaX = x - draggedNode.x;
         const deltaY = y - draggedNode.y;
-        console.log('Delta:', { deltaX, deltaY });
+        console.log('Movement delta:', { deltaX, deltaY });
+
+        // If timeline is active, log grid details
+        if (isTimelineActive && transformContext?.transformState) {
+            const timeScale = getTimelineConfig(currentScale);
+            const pixelsPerUnit = getPixelsPerUnit(timeScale);
+            console.log('Timeline grid:', {
+                timeScale,
+                pixelsPerUnit,
+                viewScale: currentScale,
+                proposedX: x,
+                nearestGridLine: Math.round(x / pixelsPerUnit) * pixelsPerUnit
+            });
+        }
 
         // If we have multiple nodes selected, move them all
         if (selectedNodes.has(id) && selectedNodes.size > 1) {

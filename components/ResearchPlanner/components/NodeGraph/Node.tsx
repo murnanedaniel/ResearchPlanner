@@ -100,6 +100,21 @@ export function Node({
             x: e.clientX - rect.left,
             y: e.clientY - rect.top
         });
+        
+        console.log('=== Drag Start ===');
+        console.log('Node:', {
+            id: node.id,
+            center: { x: node.x, y: node.y },
+            leftEdge: node.x - finalRadius,
+            rightEdge: node.x + finalRadius,
+            scale: nodeScale,
+            finalRadius,
+        });
+        console.log('Drag offset:', {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        });
+        
         e.dataTransfer.setData('text/plain', node.id.toString());
         setIsDragging(true);
     };
@@ -113,6 +128,24 @@ export function Node({
         const { scale, positionX, positionY } = transformContext.transformState;
         const x = ((e.clientX - rect.left - positionX) / scale);
         const y = ((e.clientY - rect.top - positionY) / scale);
+
+        console.log('=== Drag End ===');
+        console.log('Transform state:', { scale, positionX, positionY });
+        console.log('Raw position:', { 
+            clientX: e.clientX, 
+            clientY: e.clientY,
+            rectLeft: rect.left,
+            rectTop: rect.top
+        });
+        console.log('Calculated position:', { x, y });
+        console.log('Node details:', {
+            id: node.id,
+            currentCenter: { x: node.x, y: node.y },
+            proposedCenter: { x, y },
+            scale: nodeScale,
+            finalRadius,
+            dragOffset
+        });
 
         onDragEnd(node.id, x, y, isMultiSelected);
     };
@@ -162,31 +195,32 @@ export function Node({
     return (
         <div
             ref={nodeRef}
-            className={`absolute cursor-pointer ${isDragging ? 'opacity-50' : ''}`}
-            style={{
-                left: node.x - finalRadius,
-                top: node.y - finalRadius,
-                width: finalDiameter,
-                height: finalDiameter,
-                zIndex: node.isExpanded ? 0 : (isSelected || isMultiSelected ? 2 : 1),
-            }}
             draggable
             onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            onDragEnd={handleDragEnd}
+            className={`absolute cursor-pointer ${isDragging ? 'opacity-50' : ''}`}
+            style={{
+                left: node.x - (baseDiameter / 2),
+                top: node.y - (baseDiameter / 2),
+                width: baseDiameter,
+                height: baseDiameter,
+                zIndex: node.isExpanded ? 0 : (isSelected || isMultiSelected ? 2 : 1),
+                transformOrigin: 'center center'
+            }}
         >
             {node.hullPoints && node.hullPoints.length > 0 && (
                 <svg
                     className="absolute"
                     style={{
-                        left: -1000,  // Large offset to ensure hull is visible
+                        left: -1000,
                         top: -1000,
-                        width: 2000,  // Large size to accommodate hull
+                        width: 2000,
                         height: 2000,
-                        pointerEvents: 'none',  // SVG container shouldn't capture events
-                        zIndex: -1,  // Put hull behind all nodes
-                        overflow: 'visible'  // Allow negative coordinates
+                        pointerEvents: 'none',
+                        zIndex: -1,  // Keep hull behind with negative z-index
+                        overflow: 'visible'
                     }}
                 >
                     {(() => {
@@ -283,7 +317,7 @@ export function Node({
             )}
             
             <div
-                className={`relative cursor-pointer flex items-center justify-center
+                className={`absolute cursor-pointer flex items-center justify-center
                     rounded-full border-2 border-slate-300
                     ${isSelected || isMultiSelected ? 'ring-2 ring-blue-500' : ''}
                     ${isCreatingEdge ? 'hover:ring-2 hover:ring-green-500' : ''}
@@ -296,7 +330,10 @@ export function Node({
                 style={{
                     width: baseDiameter,
                     height: baseDiameter,
-                    transform: `scale(${nodeScale})`
+                    left: '50%',
+                    top: '50%',
+                    transform: `translate(-50%, -50%) scale(${nodeScale})`,
+                    transformOrigin: 'center center'
                 }}
                 onClick={handleClick}
                 onDoubleClick={() => onNodeEdit(node)}
