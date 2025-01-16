@@ -231,8 +231,9 @@ function GraphContent({
             return;
         }
 
+        // x and y are now center coordinates
         console.log('Dragged node:', draggedNode);
-        const deltaX = x - draggedNode.x;
+        const deltaX = x - draggedNode.x;  // draggedNode.x is already center position
         const deltaY = y - draggedNode.y;
         console.log('Delta:', { deltaX, deltaY });
 
@@ -248,7 +249,7 @@ function GraphContent({
                 }
                 
                 console.log('Moving node:', node);
-                let newX = node.x + deltaX;
+                let newX = node.x + deltaX;  // node.x is center position
                 let newY = node.y + deltaY;
                 console.log('New position:', { newX, newY });
 
@@ -261,7 +262,7 @@ function GraphContent({
                         pixelsPerUnit,
                         startDate: timelineStartDate
                     };
-                    newX = snapToGrid(newX, config);
+                    newX = snapToGrid(newX, config);  // Snap center position to grid
                     console.log('Snapped X:', newX);
                 }
 
@@ -288,7 +289,7 @@ function GraphContent({
                     pixelsPerUnit,
                     startDate: timelineStartDate
                 };
-                x = snapToGrid(x, config);
+                x = snapToGrid(x, config);  // Snap center position to grid
                 console.log('Snapped single node X:', x);
             }
             onNodeDragEnd(id, x, y);

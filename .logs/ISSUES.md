@@ -7,6 +7,34 @@
   - Fixed by:
     1. Removing description from editor key prop to prevent remounting
     2. Adding proper styling and configuration
+- [ ] The previous snap-to-timeline-grid doesn't work so well with the new configurable node scaling.
+  - Attempted solutions:
+    1. Adding radius offset after snapping:
+       - Added finalRadius after grid snap
+       - Result: Still offset from grid lines
+    
+    2. Converting to logical coordinates:
+       - Tried scaling coordinates by levelScale
+       - Tried snapping in logical space
+       - Result: Made offset worse
+    
+    3. Compensating for drag offset:
+       - Tried adjusting for both view scale and level scale
+       - Tried handling drag offset differently
+       - Result: Inconsistent behavior
+    
+    Analysis:
+    - Node centers are stored correctly
+    - Visual scaling uses CSS transform and position offset
+    - Multiple coordinate spaces (screen, graph, visual, grid) making calculations complex
+    - Drag coordinates might be relative to visual position rather than logical position
+
+    Next steps:
+    1. Add better logging of coordinate transformations
+    2. Verify grid line positions
+    3. Review drag coordinate calculations
+    4. Consider alternative scaling approach
+
 - [ ] Dragging a node has an unpleasant UI appearance - as if it's not meant to be dragged (goes semi-opaque with the cursor showing a not-possible drag icon)
   - Attempted solutions:
     1. Modifying CSS classes for cursor and opacity:

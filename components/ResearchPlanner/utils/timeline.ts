@@ -53,6 +53,12 @@ export function dateToX(date: Date, config: TimelineConfig): number {
 
 export function snapToGrid(x: number, config: TimelineConfig): number {
   const { pixelsPerUnit } = config;
+  console.log('Timeline Snap:', {
+    x,
+    pixelsPerUnit,
+    gridIndex: Math.round(x / pixelsPerUnit),
+    result: Math.round(x / pixelsPerUnit) * pixelsPerUnit
+  });
   const gridIndex = Math.round(x / pixelsPerUnit);
   return gridIndex * pixelsPerUnit;
 } 
