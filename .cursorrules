@@ -210,25 +210,56 @@ Features:
 
 ## Testing
 
-### 1. Test Structure
+### 1. Test-Driven Development (TDD)
+Core principles:
+- Write a simple test that describes the desired behavior
+- Run the test and see it fail (Red phase)
+- Write the minimum code to make the test pass (Green phase)
+- Refactor if needed, keeping tests green (Refactor phase)
+
+Guidelines:
+- Keep tests focused on behavior, not implementation
+- Start with the simplest possible test case
+- Add complexity incrementally
+- Avoid over-engineering test infrastructure
+- If a test is hard to write, the design might be too complex
+
+Example workflow:
+```typescript
+// 1. Write a simple test describing the behavior
+it('should make node B a child of node A when ctrl-dropped', () => {
+    // Arrange: Set up the minimum needed nodes
+    // Act: Simulate ctrl-drop
+    // Assert: Verify parent-child relationship
+});
+
+// 2. Run test, see it fail
+// 3. Write minimum code to make it pass
+// 4. Refactor if needed
+```
+
+### 2. Test Structure
 Tests are organized in two ways:
 - Integration tests in `__tests__/`
-  - `NodeGraph.test.tsx`: Main graph integration tests
+  - Focus on user-facing behavior
+  - Test complete features
 - Co-located component tests
-  - `Node.test.tsx`: Node component unit tests
+  - Focus on component-specific behavior
+  - Keep close to the implementation
 
-### 2. Testing Strategy
-- Unit tests are co-located with their components
-- Integration tests are in the `__tests__` directory
-- Focus on component interaction and graph operations
-- Test key user interactions and state changes
+### 3. Testing Strategy
+- Start with behavior, not implementation
+- Write tests before code
+- Keep tests simple and focused
+- Test one thing at a time
+- Use meaningful test names that describe behavior
 
-### 3. Test Coverage
-Key areas tested:
-- Node interactions and rendering
-- Graph operations and state
-- Selection behavior
-- Timeline integration
+### 4. Test Coverage
+Key behaviors to test:
+- User interactions (clicks, drags, etc.)
+- State changes
+- Visual feedback
+- Error cases
 
 ## Development Workflow
 

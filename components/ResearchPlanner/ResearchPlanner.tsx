@@ -14,6 +14,8 @@ import { useEdgeOperations } from './hooks/useEdgeOperations';
 import { calculateNodeHull } from './utils/hull';
 import { useColorGenerator } from './hooks/useColorGenerator';
 import { SettingsProvider } from './context/SettingsContext';
+import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from './utils/timeline';
+import type { TimelineConfig } from './utils/timeline';
 
 export default function ResearchPlanner() {
   const { 
@@ -640,26 +642,37 @@ export default function ResearchPlanner() {
 
     // Update the source node with the new parent
     const updatedSourceNode = {
-      ...sourceNode,
-      parentId: targetId
+        ...sourceNode,
+        parentId: targetId
     };
 
-    // Update the target node's childNodes array and mark as expanded
+    // Get all child nodes including the new one
+    const childNodes = [
+        ...nodes.filter(n => n.parentId === targetId),
+        updatedSourceNode
+    ];
+
+    // Calculate hull points
+    const hullPoints = calculateNodeHull(targetNode, childNodes);
+
+    // Update the target node's childNodes array, mark as expanded, and set hull
     const updatedTargetNode = {
-      ...targetNode,
-      childNodes: [...(targetNode.childNodes || []), sourceId],
-      isExpanded: true
+        ...targetNode,
+        childNodes: [...(targetNode.childNodes || []), sourceId],
+        isExpanded: true,
+        hullPoints,
+        hullColor: targetNode.hullColor || getNextColor()  // Use existing color or generate new one
     };
 
     // Update nodes array and ensure isExpanded is set correctly for all nodes
     setNodes(prev => prev.map(node => {
-      if (node.id === sourceId) return updatedSourceNode;
-      if (node.id === targetId) return updatedTargetNode;
-      // For all other nodes, ensure isExpanded matches the expandedNodes set
-      return {
-        ...node,
-        isExpanded: expandedNodes.has(node.id)
-      };
+        if (node.id === sourceId) return updatedSourceNode;
+        if (node.id === targetId) return updatedTargetNode;
+        // For all other nodes, ensure isExpanded matches the expandedNodes set
+        return {
+            ...node,
+            isExpanded: expandedNodes.has(node.id)
+        };
     }));
 
     // Ensure the parent node is expanded

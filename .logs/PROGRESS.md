@@ -11,7 +11,7 @@
 - [ ] Double click to create node, (double click in hull to create child)
 - [ ] Remove requirement to enter title text before creation. In fact remove the title create node text box entirely - it's an antipattern
 - [ ] Add optional magnifier effect to all nodes in lens
-- [ ] Make all constants and variables configurable in a settings menu
+- [X] Make all constants and variables configurable in a settings menu
 
 ## Completed Features
 
