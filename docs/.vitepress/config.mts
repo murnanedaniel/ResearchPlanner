@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "ResearchGraph",
   description: "A visual research planning tool",
-  base: '/research-planner/',
+  base: '/ResearchPlanner/',
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
