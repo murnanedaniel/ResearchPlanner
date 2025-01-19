@@ -16,6 +16,16 @@ import { useColorGenerator } from './hooks/useColorGenerator';
 import { SettingsProvider } from './context/SettingsContext';
 import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from './utils/timeline';
 import type { TimelineConfig } from './utils/timeline';
+import { useGoogleCalendar } from './hooks/useGoogleCalendar';
+import { useCalendarPersistence } from './hooks/useCalendarPersistence';
+
+// Use environment variables for Google Calendar credentials
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!;
+const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY!;
+
+if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY) {
+  console.error('Google Calendar credentials not found in environment variables');
+}
 
 export default function ResearchPlanner() {
   const { 
@@ -28,6 +38,7 @@ export default function ResearchPlanner() {
   
   const { addNode, deleteNode, markNodeObsolete, updateNode } = useNodeOperations();
   const { createEdge, deleteEdge, updateEdge } = useEdgeOperations();
+  const { saveCalendarState, loadCalendarState } = useCalendarPersistence();
   
   const [newItemTitle, setNewItemTitle] = useState('');
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
@@ -39,6 +50,115 @@ export default function ResearchPlanner() {
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   const [edgeStart, setEdgeStart] = useState<number | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
+  const [isCalendarSyncEnabled, setIsCalendarSyncEnabled] = useState(false);
+  const initialLoadRef = useRef(false);
+  
+  const calendar = useGoogleCalendar({
+    clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+    apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY || ''
+  });
+
+  // Load initial calendar state and restore sync preferences
+  useEffect(() => {
+    // Skip if we're still initializing
+    if (calendar.isInitializing) {
+      console.log('Skipping state load - still initializing');
+      return;
+    }
+
+    // Skip if we've already loaded and auth hasn't changed
+    if (initialLoadRef.current && !calendar.isAuthenticated) {
+      return;
+    }
+
+    console.log('\n=== Loading Calendar State ===');
+    const savedState = loadCalendarState();
+    console.log('Loaded saved state:', savedState);
+
+    // Only restore sync state if initialization is complete
+    if (calendar.isInitialized) {
+      if (savedState?.isCalendarAuthenticated && calendar.isAuthenticated) {
+        console.log('Restoring sync state:', savedState.isCalendarSyncEnabled);
+        // Batch the state updates to prevent race conditions
+        Promise.resolve().then(() => {
+          setIsCalendarSyncEnabled(savedState.isCalendarSyncEnabled);
+        });
+      } else if (!calendar.isAuthenticated) {
+        setIsCalendarSyncEnabled(false);
+      }
+      initialLoadRef.current = true;
+    }
+  }, [calendar.isAuthenticated, calendar.isInitializing, calendar.isInitialized]);
+
+  // Combined effect for auth and sync state changes
+  useEffect(() => {
+    // Skip during initialization
+    if (!calendar.isInitialized || calendar.isInitializing) {
+      return;
+    }
+
+    // Only save state if we're fully initialized
+    if (calendar.isInitialized) {
+      saveCalendarState({
+        isCalendarSyncEnabled,
+        isCalendarAuthenticated: calendar.isAuthenticated
+      });
+    }
+  }, [isCalendarSyncEnabled, calendar.isAuthenticated, calendar.isInitializing, calendar.isInitialized]);
+
+  // Calendar sync effect (consolidated)
+  useEffect(() => {
+    // Skip if we're initializing or sync conditions aren't met
+    if (calendar.isInitializing || !isCalendarSyncEnabled || !calendar.isAuthenticated) {
+      console.log('\n=== Calendar Sync Effect ===');
+      console.log('Sync enabled:', isCalendarSyncEnabled);
+      console.log('Calendar authenticated:', calendar.isAuthenticated);
+      console.log('Sync skipped: disabled or not authenticated');
+      return;
+    }
+
+    console.log('\n=== Calendar Sync Effect ===');
+    console.log('Sync enabled:', isCalendarSyncEnabled);
+    console.log('Calendar authenticated:', calendar.isAuthenticated);
+
+    // Get nodes with days that need syncing
+    const nodesToSync = nodes.filter(node => node.day && !node.calendarEventId);
+    const nodesToUpdate = nodes.filter(node => node.day && node.calendarEventId);
+
+    console.log('Nodes to sync:', nodesToSync.length);
+    console.log('Nodes to update:', nodesToUpdate.length);
+
+    // Create new events
+    nodesToSync.forEach(async (node) => {
+      console.log('\nSyncing node:', node.title);
+      console.log('Node date:', node.day);
+      console.log('Node date type:', typeof node.day);
+      try {
+        const eventId = await calendar.syncNode(node);
+        console.log('Created event with ID:', eventId);
+        // Update node with calendar event ID
+        setNodes(prev => prev.map(n => 
+          n.id === node.id ? { ...n, calendarEventId: eventId } : n
+        ));
+      } catch (error) {
+        console.error('Failed to sync node:', node.title, error);
+      }
+    });
+
+    // Update existing events
+    nodesToUpdate.forEach(async (node) => {
+      console.log('\nUpdating node:', node.title);
+      console.log('Node date:', node.day);
+      console.log('Node date type:', typeof node.day);
+      console.log('Event ID:', node.calendarEventId);
+      try {
+        await calendar.updateNode(node, node.calendarEventId!);
+        console.log('Updated event successfully');
+      } catch (error) {
+        console.error('Failed to update node:', node.title, error);
+      }
+    });
+  }, [nodes, isCalendarSyncEnabled, calendar.isAuthenticated, calendar.isInitializing]);
 
   // Initialize expandedNodes from loaded graph data
   useEffect(() => {
@@ -52,6 +172,56 @@ export default function ResearchPlanner() {
       setExpandedNodes(new Set(expandedNodeIds));
     }
   }, [nodes]);
+
+  // Handle calendar sync when nodes change
+  useEffect(() => {
+    console.log('\n=== Calendar Sync Effect ===');
+    console.log('Sync enabled:', isCalendarSyncEnabled);
+    console.log('Calendar authenticated:', calendar.isAuthenticated);
+    
+    if (!isCalendarSyncEnabled || !calendar.isAuthenticated) {
+      console.log('Sync skipped: disabled or not authenticated');
+      return;
+    }
+
+    // Get nodes with days that need syncing
+    const nodesToSync = nodes.filter(node => node.day && !node.calendarEventId);
+    const nodesToUpdate = nodes.filter(node => node.day && node.calendarEventId);
+
+    console.log('Nodes to sync:', nodesToSync.length);
+    console.log('Nodes to update:', nodesToUpdate.length);
+
+    // Create new events
+    nodesToSync.forEach(async (node) => {
+      console.log('\nSyncing node:', node.title);
+      console.log('Node date:', node.day);
+      console.log('Node date type:', typeof node.day);
+      try {
+        const eventId = await calendar.syncNode(node);
+        console.log('Created event with ID:', eventId);
+        // Update node with calendar event ID
+        setNodes(prev => prev.map(n => 
+          n.id === node.id ? { ...n, calendarEventId: eventId } : n
+        ));
+      } catch (error) {
+        console.error('Failed to sync node:', node.title, error);
+      }
+    });
+
+    // Update existing events
+    nodesToUpdate.forEach(async (node) => {
+      console.log('\nUpdating node:', node.title);
+      console.log('Node date:', node.day);
+      console.log('Node date type:', typeof node.day);
+      console.log('Event ID:', node.calendarEventId);
+      try {
+        await calendar.updateNode(node, node.calendarEventId!);
+        console.log('Updated event successfully');
+      } catch (error) {
+        console.error('Failed to update node:', node.title, error);
+      }
+    });
+  }, [nodes, isCalendarSyncEnabled, calendar.isAuthenticated]);
 
   // New autocomplete states
   const [isAutocompleteModeActive, setAutocompleteModeActive] = useState(false);
@@ -97,14 +267,12 @@ export default function ResearchPlanner() {
   };
 
   const handleNodeDelete = useCallback((id: number) => {
+    const node = nodes.find(n => n.id === id);
+    if (node?.calendarEventId && isCalendarSyncEnabled && calendar.isAuthenticated) {
+      calendar.deleteNode(node.calendarEventId).catch(console.error);
+    }
     deleteNode(id);
-    setSelectedNode(null);
-    setSelectedNodes(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(id);
-      return newSet;
-    });
-  }, [deleteNode]);
+  }, [nodes, isCalendarSyncEnabled, calendar.isAuthenticated]);
 
   const handleNodeClick = (node: GraphNode, event?: React.MouseEvent) => {
     if (isCreatingEdge) {
@@ -234,12 +402,12 @@ export default function ResearchPlanner() {
     setSelectedEdge(edge.id);
   };
 
-  const handleNodeDragEnd = (id: number, x: number, y: number) => {
+  const handleNodeDragEnd = (id: number, x: number, y: number, day?: Date) => {
     const node = nodes.find(n => n.id === id);
     if (!node) return;
 
     // Update the dragged node
-    const updatedNode = { ...node, x, y };
+    const updatedNode = { ...node, x, y, day };
 
     // If this is a child node, update parent's hull
     if (node.parentId) {
@@ -275,16 +443,46 @@ export default function ResearchPlanner() {
     ]);
   };
 
-  const handleNodesDragEnd = (updates: { id: number; x: number; y: number }[]) => {
-    setNodes(prevNodes => {
-      const updatedNodes = [...prevNodes];
-      updates.forEach(update => {
-        const index = updatedNodes.findIndex(node => node.id === update.id);
-        if (index !== -1) {
-          updatedNodes[index] = { ...updatedNodes[index], x: update.x, y: update.y };
+  const handleNodesDragEnd = (updates: { id: number; x: number; y: number; day?: Date }[]) => {
+    // First, collect all nodes that need updating (including parents)
+    const nodesToUpdate = new Set<number>();
+    const nodeUpdates = new Map<number, Partial<GraphNode>>();
+
+    updates.forEach(update => {
+        const node = nodes.find(n => n.id === update.id);
+        if (!node) return;
+
+        nodesToUpdate.add(update.id);
+        nodeUpdates.set(update.id, { x: update.x, y: update.y, day: update.day });
+
+        // If node has a parent, we need to update the parent's hull
+        if (node.parentId) {
+            nodesToUpdate.add(node.parentId);
         }
-      });
-      return updatedNodes;
+    });
+
+    setNodes(prev => {
+        const updatedNodes = prev.map(node => {
+            if (!nodesToUpdate.has(node.id)) return node;
+
+            const updates = nodeUpdates.get(node.id) || {};
+            const updatedNode = { ...node, ...updates };
+
+            // If this is a parent node, recalculate its hull
+            if (node.childNodes?.length) {
+                const childNodes = prev
+                    .filter(n => node.childNodes?.includes(n.id))
+                    .map(n => {
+                        const childUpdates = nodeUpdates.get(n.id);
+                        return childUpdates ? { ...n, ...childUpdates } : n;
+                    });
+                updatedNode.hullPoints = calculateNodeHull(updatedNode, childNodes);
+            }
+
+            return updatedNode;
+        });
+
+        return updatedNodes;
     });
   };
 
@@ -724,6 +922,12 @@ export default function ResearchPlanner() {
             onTimelineToggle={setTimelineActive}
             timelineStartDate={timelineStartDate}
             onTimelineStartDateChange={setTimelineStartDate}
+            isCalendarSyncEnabled={isCalendarSyncEnabled}
+            onCalendarSyncToggle={setIsCalendarSyncEnabled}
+            isCalendarAuthenticated={calendar.isAuthenticated}
+            onCalendarLogin={calendar.login}
+            isCalendarInitializing={calendar.isInitializing}
+            calendarError={calendar.error}
           />
           
           <div className="flex-1 h-0">

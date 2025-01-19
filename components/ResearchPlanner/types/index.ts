@@ -16,7 +16,9 @@ export interface GraphNode {
     isExpanded?: boolean;
     hullPoints?: Point[];
     hullColor?: { fill: string; stroke: string; };
-  }
+    day?: string | Date;  // Can be either a Date object or an ISO string
+    calendarEventId?: string;
+}
   
   export interface FileAttachment {
     id: string;
@@ -45,7 +47,7 @@ export interface GraphNode {
   export interface GraphData {
     nodes: GraphNode[];
     edges: Edge[];
-    timelineActive?: boolean;
-    timelineStartDate?: string;  // ISO string format for date
-    expandedNodes?: number[];  // Add expanded nodes to persisted data
+    timelineActive: boolean;
+    timelineStartDate: string;
+    expandedNodes: number[];
   }

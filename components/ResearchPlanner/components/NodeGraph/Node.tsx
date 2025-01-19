@@ -22,7 +22,7 @@ interface NodeProps {
     onNodeEdit: (node: GraphNode) => void;
     onNodeDelete: (id: number) => void;
     onEdgeCreate: (id: number) => void;
-    onDragEnd: (id: number, x: number, y: number, isMultiDrag?: boolean) => void;
+    onDragEnd: (id: number, x: number, y: number, day?: Date) => void;
     onMarkObsolete: (id: number) => void;
     isStartNode: boolean;
     isGoalNode: boolean;
@@ -120,34 +120,19 @@ export function Node({
     };
 
     const handleDragEnd = (e: React.DragEvent) => {
+        if (!nodeRef.current) return;
+        
         setIsDragging(false);
         
-        const rect = (e.target as HTMLElement).closest('.graph-container')?.getBoundingClientRect();
-        if (!rect || !transformContext?.transformState) return;
-
-        const { scale, positionX, positionY } = transformContext.transformState;
-        const x = ((e.clientX - rect.left - positionX) / scale);
-        const y = ((e.clientY - rect.top - positionY) / scale);
-
-        console.log('=== Drag End ===');
-        console.log('Transform state:', { scale, positionX, positionY });
-        console.log('Raw position:', { 
-            clientX: e.clientX, 
-            clientY: e.clientY,
-            rectLeft: rect.left,
-            rectTop: rect.top
-        });
-        console.log('Calculated position:', { x, y });
-        console.log('Node details:', {
-            id: node.id,
-            currentCenter: { x: node.x, y: node.y },
-            proposedCenter: { x, y },
-            scale: nodeScale,
-            finalRadius,
-            dragOffset
-        });
-
-        onDragEnd(node.id, x, y, isMultiSelected);
+        // Get the final position
+        const rect = nodeRef.current.getBoundingClientRect();
+        const { scale: zoom, positionX, positionY } = transformContext?.transformState || { scale: 1, positionX: 0, positionY: 0 };
+        
+        // Calculate the center position
+        const centerX = (rect.left + rect.width / 2 - positionX) / zoom;
+        const centerY = (rect.top + rect.height / 2 - positionY) / zoom;
+        
+        onDragEnd(node.id, centerX, centerY);
     };
 
     const handleDragOver = (e: React.DragEvent) => {

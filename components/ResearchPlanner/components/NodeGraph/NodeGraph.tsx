@@ -9,7 +9,7 @@ import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScalingText } from '../shared/ScalingText';
 import { TimelineGrid } from './TimelineGrid';
-import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from '../../utils/timeline';
+import { getTimelineConfig, getPixelsPerUnit, snapToGrid, xToDate } from '../../utils/timeline';
 import type { TimelineConfig } from '../../utils/timeline';
 import { useSettings } from '../../context/SettingsContext';
 
@@ -45,8 +45,8 @@ interface NodeGraphProps {
     onEdgeCreate: (id: number) => void;
     onEdgeEdit: (edge: Edge) => void;
     onEdgeDelete: (id: number) => void;
-    onNodeDragEnd: (id: number, x: number, y: number) => void;
-    onNodesDragEnd?: (updates: { id: number; x: number; y: number }[]) => void;
+    onNodeDragEnd: (id: number, x: number, y: number, day?: Date) => void;
+    onNodesDragEnd?: (updates: { id: number; x: number; y: number; day?: Date }[]) => void;
     onMarkObsolete: (id: number) => void;
     selectedStartNodes: number[];
     selectedGoalNodes: number[];
@@ -220,9 +220,10 @@ function GraphContent({
         setSelectionBox(null);
     };
 
-    const handleNodeDragEnd = (id: number, x: number, y: number) => {
+    const handleNodeDragEnd = (id: number, x: number, y: number, day?: Date) => {
         console.log('\n=== NodeGraph Drag End ===');
         console.log('Initial position:', { id, x, y });
+        console.log('Timeline active:', isTimelineActive);
         
         // Find the dragged node to calculate the delta
         const draggedNode = nodes.find(n => n.id === id);
@@ -272,6 +273,7 @@ function GraphContent({
                 console.log('New position:', { newX, newY });
 
                 // Snap to grid if timeline is active
+                let day = undefined;
                 if (isTimelineActive && transformContext?.transformState) {
                     const timeScale = getTimelineConfig(currentScale);
                     const pixelsPerUnit = getPixelsPerUnit(timeScale);
@@ -281,24 +283,28 @@ function GraphContent({
                         startDate: timelineStartDate
                     };
                     newX = snapToGrid(newX, config);  // Snap center position to grid
-                    console.log('Snapped X:', newX);
+                    day = xToDate(newX, config);  // Convert position to date
+                    console.log('Snapped X:', newX, 'Day:', day);
                 }
 
-                return { id: selectedId, x: newX, y: newY };
-            }).filter(update => update !== null) as { id: number; x: number; y: number }[];
+                return { id: selectedId, x: newX, y: newY, day };
+            }).filter(update => update !== null) as { id: number; x: number; y: number; day?: Date }[];
 
             // Use batch update if available
             if (onNodesDragEnd) {
+                console.log('Batch updating nodes:', updates);
                 onNodesDragEnd(updates);
             } else {
                 // Fallback to individual updates
+                console.log('Individual updates for nodes:', updates);
                 updates.forEach(update => {
-                    onNodeDragEnd(update.id, update.x, update.y);
+                    onNodeDragEnd(update.id, update.x, update.y, update.day);
                 });
             }
         } else {
             console.log('Moving single node');
             // Single node movement
+            let day = undefined;
             if (isTimelineActive && transformContext?.transformState) {
                 const timeScale = getTimelineConfig(currentScale);
                 const pixelsPerUnit = getPixelsPerUnit(timeScale);
@@ -308,9 +314,10 @@ function GraphContent({
                     startDate: timelineStartDate
                 };
                 x = snapToGrid(x, config);  // Snap center position to grid
-                console.log('Snapped single node X:', x);
+                day = xToDate(x, config);  // Convert position to date
+                console.log('Snapped single node X:', x, 'Day:', day);
             }
-            onNodeDragEnd(id, x, y);
+            onNodeDragEnd(id, x, y, day);
         }
     };
 

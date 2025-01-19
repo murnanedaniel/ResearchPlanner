@@ -3,7 +3,7 @@
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Calendar, Settings } from "lucide-react";
+import { PlusCircle, Calendar, Settings, Cloud } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -27,6 +27,12 @@ interface ToolbarProps {
   onTimelineToggle: (active: boolean) => void;
   timelineStartDate: Date;
   onTimelineStartDateChange: (date: Date) => void;
+  isCalendarSyncEnabled: boolean;
+  onCalendarSyncToggle: (enabled: boolean) => void;
+  isCalendarAuthenticated: boolean;
+  onCalendarLogin: () => void;
+  isCalendarInitializing?: boolean;
+  calendarError?: Error | null;
 }
 
 export function Toolbar({
@@ -46,7 +52,13 @@ export function Toolbar({
   isTimelineActive,
   onTimelineToggle,
   timelineStartDate,
-  onTimelineStartDateChange
+  onTimelineStartDateChange,
+  isCalendarSyncEnabled,
+  onCalendarSyncToggle,
+  isCalendarAuthenticated,
+  onCalendarLogin,
+  isCalendarInitializing = false,
+  calendarError = null
 }: ToolbarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
@@ -114,21 +126,55 @@ export function Toolbar({
             </div>
 
             {isTimelineActive && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <Calendar className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent
-                    mode="single"
-                    selected={timelineStartDate}
-                    onSelect={(date) => date && onTimelineStartDateChange(date)}
-                    initialFocus
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <Calendar className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent
+                      mode="single"
+                      selected={timelineStartDate}
+                      onSelect={(date) => date && onTimelineStartDateChange(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <div className="flex items-center gap-2 ml-2">
+                  <Checkbox
+                    id="calendar-sync"
+                    checked={isCalendarSyncEnabled}
+                    onCheckedChange={onCalendarSyncToggle}
+                    disabled={!isCalendarAuthenticated}
                   />
-                </PopoverContent>
-              </Popover>
+                  <label
+                    htmlFor="calendar-sync"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Sync to Calendar
+                  </label>
+                  {!isCalendarAuthenticated && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onCalendarLogin}
+                      disabled={isCalendarInitializing}
+                      className="ml-2"
+                    >
+                      <Cloud className={`h-4 w-4 ${isCalendarInitializing ? 'animate-spin' : ''}`} />
+                      {isCalendarInitializing ? 'Connecting...' : 'Connect'}
+                    </Button>
+                  )}
+                  {calendarError && (
+                    <span className="text-sm text-red-500 ml-2" title={calendarError.message}>
+                      Connection error
+                    </span>
+                  )}
+                </div>
+              </>
             )}
           </div>
 

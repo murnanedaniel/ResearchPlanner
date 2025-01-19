@@ -51,6 +51,25 @@ export function dateToX(date: Date, config: TimelineConfig): number {
   }
 }
 
+export function xToDate(x: number, config: TimelineConfig): Date {
+  const { scale, pixelsPerUnit, startDate } = config;
+  const gridIndex = Math.round(x / pixelsPerUnit);
+  
+  const result = new Date(startDate);
+  switch (scale) {
+    case 'monthly':
+      result.setMonth(result.getMonth() + gridIndex);
+      break;
+    case 'weekly':
+      result.setDate(result.getDate() + gridIndex * 7);
+      break;
+    case 'daily':
+      result.setDate(result.getDate() + gridIndex);
+      break;
+  }
+  return result;
+}
+
 export function snapToGrid(x: number, config: TimelineConfig): number {
   const { pixelsPerUnit } = config;
   console.log('Timeline Snap:', {

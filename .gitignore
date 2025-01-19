@@ -38,3 +38,7 @@ next-env.d.ts
 .env
 npm-debug.log
 .DS_Store
+
+# Environment variables
+.env.local
+.env.*.local
