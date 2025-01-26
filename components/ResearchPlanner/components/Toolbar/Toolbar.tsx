@@ -3,7 +3,7 @@
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Calendar, Settings } from "lucide-react";
+import { PlusCircle, Calendar, Settings, Cloud, Check, Loader2, LogOut } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -27,6 +27,15 @@ interface ToolbarProps {
   onTimelineToggle: (active: boolean) => void;
   timelineStartDate: Date;
   onTimelineStartDateChange: (date: Date) => void;
+  isCalendarSyncEnabled: boolean;
+  onCalendarSyncToggle: (checked: boolean) => void;
+  isCalendarAuthenticated: boolean;
+  onCalendarLogin: () => void;
+  onCalendarSignOut: () => void;
+  isCalendarInitializing?: boolean;
+  calendarError?: Error | null;
+  isSyncing?: boolean;
+  dirtyNodesCount?: number;
 }
 
 export function Toolbar({
@@ -46,7 +55,16 @@ export function Toolbar({
   isTimelineActive,
   onTimelineToggle,
   timelineStartDate,
-  onTimelineStartDateChange
+  onTimelineStartDateChange,
+  isCalendarSyncEnabled,
+  onCalendarSyncToggle,
+  isCalendarAuthenticated,
+  onCalendarLogin,
+  onCalendarSignOut,
+  isCalendarInitializing = false,
+  calendarError = null,
+  isSyncing = false,
+  dirtyNodesCount = 0
 }: ToolbarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
@@ -114,21 +132,89 @@ export function Toolbar({
             </div>
 
             {isTimelineActive && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <Calendar className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent
-                    mode="single"
-                    selected={timelineStartDate}
-                    onSelect={(date) => date && onTimelineStartDateChange(date)}
-                    initialFocus
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <Calendar className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent
+                      mode="single"
+                      selected={timelineStartDate}
+                      onSelect={(date) => date && onTimelineStartDateChange(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <div className="flex items-center gap-2 ml-2">
+                  <Checkbox
+                    id="calendar-sync"
+                    checked={isCalendarSyncEnabled}
+                    onCheckedChange={onCalendarSyncToggle}
+                    disabled={!isCalendarAuthenticated}
                   />
-                </PopoverContent>
-              </Popover>
+                  <label
+                    htmlFor="calendar-sync"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Sync to Calendar
+                  </label>
+                  {!isCalendarAuthenticated && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={onCalendarLogin}
+                      disabled={isCalendarInitializing}
+                      className="ml-2"
+                    >
+                      <Cloud className={`h-4 w-4 ${isCalendarInitializing ? 'animate-spin' : ''}`} />
+                    </Button>
+                  )}
+                  {isCalendarAuthenticated && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={onCalendarSignOut}
+                        className="ml-2"
+                      >
+                        <LogOut className="h-4 w-4" />
+                      </Button>
+                      {isCalendarSyncEnabled && (
+                        <div className="flex items-center gap-2 ml-2">
+                          {isSyncing ? (
+                            <Button variant="ghost" size="icon" disabled className="pointer-events-none">
+                              <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                            </Button>
+                          ) : dirtyNodesCount > 0 ? (
+                            <Button variant="ghost" size="icon" disabled className="pointer-events-none">
+                              <div className="relative">
+                                <Cloud className="h-4 w-4 text-slate-500" />
+                                <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-orange-500" />
+                              </div>
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" disabled className="pointer-events-none">
+                              <Check className="h-4 w-4 text-green-500" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {calendarError && (
+                    <Button variant="ghost" size="icon" disabled className="pointer-events-none text-red-500" title={calendarError.message}>
+                      <div className="relative">
+                        <Cloud className="h-4 w-4" />
+                        <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500" />
+                      </div>
+                    </Button>
+                  )}
+                </div>
+              </>
             )}
           </div>
 

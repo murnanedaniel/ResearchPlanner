@@ -16,6 +16,17 @@ import { useColorGenerator } from './hooks/useColorGenerator';
 import { SettingsProvider } from './context/SettingsContext';
 import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from './utils/timeline';
 import type { TimelineConfig } from './utils/timeline';
+import { useGoogleCalendar } from './hooks/useGoogleCalendar';
+import { useCalendarPersistence } from './hooks/useCalendarPersistence';
+import { addDays } from 'date-fns';
+
+// Use environment variables for Google Calendar credentials
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!;
+const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY!;
+
+if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY) {
+  console.error('Google Calendar credentials not found in environment variables');
+}
 
 export default function ResearchPlanner() {
   const { 
@@ -28,6 +39,7 @@ export default function ResearchPlanner() {
   
   const { addNode, deleteNode, markNodeObsolete, updateNode } = useNodeOperations();
   const { createEdge, deleteEdge, updateEdge } = useEdgeOperations();
+  const { saveCalendarState, loadCalendarState } = useCalendarPersistence();
   
   const [newItemTitle, setNewItemTitle] = useState('');
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
@@ -39,6 +51,17 @@ export default function ResearchPlanner() {
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   const [edgeStart, setEdgeStart] = useState<number | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
+
+  // Calendar state
+  const [isCalendarSyncEnabled, setIsCalendarSyncEnabled] = useState(false);
+  const [dirtyNodes, setDirtyNodes] = useState<Set<number>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const initialLoadRef = useRef(false);
+  
+  const calendar = useGoogleCalendar({
+    clientId: GOOGLE_CLIENT_ID,
+    apiKey: GOOGLE_API_KEY
+  });
 
   // Initialize expandedNodes from loaded graph data
   useEffect(() => {
@@ -52,6 +75,124 @@ export default function ResearchPlanner() {
       setExpandedNodes(new Set(expandedNodeIds));
     }
   }, [nodes]);
+
+  // Load initial calendar state and restore sync preferences
+  useEffect(() => {
+    // Skip if we're still initializing
+    if (calendar.isInitializing) {
+      console.log('Skipping state load - still initializing');
+      return;
+    }
+
+    // Skip if we've already loaded and auth hasn't changed
+    if (initialLoadRef.current && !calendar.isAuthenticated) {
+      return;
+    }
+
+    console.log('\n=== Loading Calendar State ===');
+    const savedState = loadCalendarState();
+    console.log('Loaded saved state:', savedState);
+
+    // Only restore sync state if initialization is complete
+    if (calendar.isInitialized) {
+      if (savedState?.isCalendarAuthenticated && calendar.isAuthenticated) {
+        console.log('Restoring sync state:', savedState.isCalendarSyncEnabled);
+        // Batch the state updates to prevent race conditions
+        Promise.resolve().then(() => {
+          setIsCalendarSyncEnabled(savedState.isCalendarSyncEnabled);
+        });
+      } else if (!calendar.isAuthenticated) {
+        setIsCalendarSyncEnabled(false);
+      }
+      initialLoadRef.current = true;
+    }
+  }, [calendar.isAuthenticated, calendar.isInitializing, calendar.isInitialized]);
+
+  // Combined effect for auth and sync state changes
+  useEffect(() => {
+    // Skip during initialization
+    if (!calendar.isInitialized || calendar.isInitializing) {
+      return;
+    }
+
+    // Only save state if we're fully initialized
+    if (calendar.isInitialized) {
+      saveCalendarState({
+        isCalendarSyncEnabled,
+        isCalendarAuthenticated: calendar.isAuthenticated
+      });
+    }
+  }, [isCalendarSyncEnabled, calendar.isAuthenticated, calendar.isInitializing, calendar.isInitialized]);
+
+  // Unified debounced calendar sync effect
+  useEffect(() => {
+    if (!isCalendarSyncEnabled || !calendar.isAuthenticated) {
+      console.log('\n=== Calendar Sync Effect ===');
+      console.log('Sync enabled:', isCalendarSyncEnabled);
+      console.log('Calendar authenticated:', calendar.isAuthenticated);
+      console.log('Sync skipped: disabled or not authenticated');
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSyncing(true);
+      console.log('\n=== Debounced Calendar Sync ===');
+
+      try {
+        // First handle nodes that need new events created
+        const nodesToCreate = nodes.filter(node => 
+          node.day && !node.calendarEventId
+        );
+        
+        console.log('Nodes needing new events:', nodesToCreate.length);
+        
+        // Create new events
+        for (const node of nodesToCreate) {
+          console.log('\nCreating event for node:', node.title);
+          try {
+            const eventId = await calendar.syncNode(node);
+            console.log('Created event with ID:', eventId);
+            // Update node with calendar event ID
+            setNodes(prev => prev.map(n => 
+              n.id === node.id ? { ...n, calendarEventId: eventId } : n
+            ));
+          } catch (error) {
+            console.error('Failed to create event for node:', node.title, error);
+          }
+        }
+
+        // Then handle nodes that need updates
+        const nodesToUpdate = nodes.filter(node => 
+          node.day && node.calendarEventId && dirtyNodes.has(node.id)
+        );
+
+        console.log('Nodes needing updates:', nodesToUpdate.length);
+
+        // Update existing events
+        for (const node of nodesToUpdate) {
+          console.log('\nUpdating node:', node.title);
+          try {
+            await calendar.updateNode(node, node.calendarEventId!);
+            console.log('Updated event successfully');
+            // Clear from dirty set on success
+            setDirtyNodes(prev => {
+              const next = new Set(prev);
+              next.delete(node.id);
+              return next;
+            });
+          } catch (error) {
+            console.error('Failed to update node:', node.title, error);
+          }
+        }
+      } catch (error) {
+        console.error('Failed during calendar sync:', error);
+      } finally {
+        setIsSyncing(false);
+      }
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timer);
+  }, [nodes, dirtyNodes, isCalendarSyncEnabled, calendar.isAuthenticated]);
 
   // New autocomplete states
   const [isAutocompleteModeActive, setAutocompleteModeActive] = useState(false);
@@ -97,6 +238,15 @@ export default function ResearchPlanner() {
   };
 
   const handleNodeDelete = useCallback((id: number) => {
+    // Get the node before deleting it
+    const node = nodes.find(n => n.id === id);
+    if (node?.calendarEventId && isCalendarSyncEnabled && calendar.isAuthenticated) {
+      // Delete the calendar event
+      calendar.deleteNode(node.calendarEventId).catch(error => {
+        console.error('Failed to delete calendar event:', error);
+      });
+    }
+
     deleteNode(id);
     setSelectedNode(null);
     setSelectedNodes(prev => {
@@ -104,7 +254,7 @@ export default function ResearchPlanner() {
       newSet.delete(id);
       return newSet;
     });
-  }, [deleteNode]);
+  }, [deleteNode, nodes, isCalendarSyncEnabled, calendar.isAuthenticated]);
 
   const handleNodeClick = (node: GraphNode, event?: React.MouseEvent) => {
     if (isCreatingEdge) {
@@ -238,8 +388,27 @@ export default function ResearchPlanner() {
     const node = nodes.find(n => n.id === id);
     if (!node) return;
 
+    // Calculate day if timeline is active
+    let day = node.day;
+    if (timelineActive) {
+      const scale = getTimelineConfig(1); // Always use daily scale for now
+      const pixelsPerUnit = getPixelsPerUnit(scale);
+      const gridIndex = Math.floor(x / pixelsPerUnit);
+      const date = addDays(timelineStartDate, gridIndex);
+      day = date.toISOString();
+    }
+
+    // If day changed or node gets its first day value, mark for sync
+    if (day !== node.day || (day && !node.calendarEventId)) {
+      setDirtyNodes(prev => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+    }
+
     // Update the dragged node
-    const updatedNode = { ...node, x, y };
+    const updatedNode = { ...node, x, y, day };
 
     // If this is a child node, update parent's hull
     if (node.parentId) {
@@ -276,16 +445,45 @@ export default function ResearchPlanner() {
   };
 
   const handleNodesDragEnd = (updates: { id: number; x: number; y: number }[]) => {
+    // Track nodes that need to be marked as dirty
+    const nodesToMarkDirty = new Set<number>();
+
     setNodes(prevNodes => {
       const updatedNodes = [...prevNodes];
       updates.forEach(update => {
         const index = updatedNodes.findIndex(node => node.id === update.id);
         if (index !== -1) {
-          updatedNodes[index] = { ...updatedNodes[index], x: update.x, y: update.y };
+          const node = updatedNodes[index];
+          
+          // Calculate day if timeline is active
+          let day = node.day;
+          if (timelineActive) {
+            const scale = getTimelineConfig(1);
+            const pixelsPerUnit = getPixelsPerUnit(scale);
+            const gridIndex = Math.floor(update.x / pixelsPerUnit);
+            const date = addDays(timelineStartDate, gridIndex);
+            day = date.toISOString();
+          }
+
+          // If day changed or node gets its first day value, mark for sync
+          if (day !== node.day || (day && !node.calendarEventId)) {
+            nodesToMarkDirty.add(node.id);
+          }
+
+          updatedNodes[index] = { ...node, x: update.x, y: update.y, day };
         }
       });
       return updatedNodes;
     });
+
+    // Update dirty nodes after the nodes state has been updated
+    if (nodesToMarkDirty.size > 0) {
+      setDirtyNodes(prev => {
+        const next = new Set(prev);
+        nodesToMarkDirty.forEach(id => next.add(id));
+        return next;
+      });
+    }
   };
 
   const handleEdgeCreate = (nodeId: number) => {
@@ -305,8 +503,15 @@ export default function ResearchPlanner() {
 
   const handleDescriptionChange = (value: string) => {
     if (selectedNode !== null) {
+      // Immediate local update
       updateNode(selectedNode, { description: value });
       setTempDescription(value);
+      // Mark node as needing sync
+      setDirtyNodes(prev => {
+        const next = new Set(prev);
+        next.add(selectedNode);
+        return next;
+      });
     } else if (selectedEdge !== null) {
       updateEdge(selectedEdge, { description: value });
       setTempDescription(value);
@@ -724,6 +929,15 @@ export default function ResearchPlanner() {
             onTimelineToggle={setTimelineActive}
             timelineStartDate={timelineStartDate}
             onTimelineStartDateChange={setTimelineStartDate}
+            isCalendarSyncEnabled={isCalendarSyncEnabled}
+            onCalendarSyncToggle={setIsCalendarSyncEnabled}
+            isCalendarAuthenticated={calendar.isAuthenticated}
+            onCalendarLogin={calendar.login}
+            onCalendarSignOut={calendar.logout}
+            isCalendarInitializing={calendar.isInitializing}
+            calendarError={calendar.error}
+            isSyncing={isSyncing}
+            dirtyNodesCount={dirtyNodes.size}
           />
           
           <div className="flex-1 h-0">
