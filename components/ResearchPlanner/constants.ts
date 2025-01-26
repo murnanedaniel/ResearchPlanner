@@ -12,6 +12,11 @@ export const GRAPH_CONSTANTS = {
     HIERARCHY_LEVEL_SCALE: 0.8
 } as const;
 
+export const CALENDAR_CONSTANTS = {
+    NAME: 'DoGraph',
+    ID_KEY: 'doGraphCalendarId'
+} as const;
+
 // Export a function to get the current value of a constant, which can be overridden by settings
 export function getGraphConstant(key: keyof typeof GRAPH_CONSTANTS, settings?: any) {
     // If no settings provided or settings is undefined, return default constant
