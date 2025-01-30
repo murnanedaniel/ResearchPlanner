@@ -108,3 +108,11 @@
   - Improved type safety with proper interfaces
   - Reduced ResearchPlanner.tsx complexity
   - Maintained all existing functionality
+
+## 2024-03-21
+- Enhanced edge operations with dedicated hook functionality
+  - Moved edge creation state to `useEdgeOperations` hook
+  - Added edge creation flow management
+  - Added edge state toggle functions
+  - Maintained all existing edge functionality
+  - Reduced complexity in ResearchPlanner.tsx

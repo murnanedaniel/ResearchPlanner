@@ -29,7 +29,17 @@ export default function ResearchPlanner() {
   } = useGraphState();
   
   const { addNode, deleteNode, markNodeObsolete, updateNode } = useNodeOperations();
-  const { createEdge, deleteEdge, updateEdge } = useEdgeOperations();
+  const { 
+    createEdge, 
+    deleteEdge, 
+    updateEdge,
+    isCreatingEdge,
+    edgeStart,
+    toggleEdgeCreation,
+    handleEdgeCreate,
+    markEdgeObsolete: markEdgeObsolete,
+    toggleEdgePlanned
+  } = useEdgeOperations();
   
   const [newItemTitle, setNewItemTitle] = useState('');
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
@@ -38,8 +48,6 @@ export default function ResearchPlanner() {
   const [editingNode, setEditingNode] = useState<GraphNode | null>(null);
   const [editingEdge, setEditingEdge] = useState<Edge | null>(null);
   const [tempDescription, setTempDescription] = useState('');
-  const [isCreatingEdge, setIsCreatingEdge] = useState(false);
-  const [edgeStart, setEdgeStart] = useState<number | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
 
   // Calendar integration
@@ -352,20 +360,9 @@ export default function ResearchPlanner() {
     }
   };
 
-  const handleEdgeCreate = (nodeId: number) => {
-    if (edgeStart === null) {
-      setEdgeStart(nodeId);
-    } else if (edgeStart !== nodeId) {
-      createEdge(edgeStart, nodeId);
-      setIsCreatingEdge(false);
-      setEdgeStart(null);
-    }
-  };
-
-  const handleToggleEdgeCreate = () => {
-    setIsCreatingEdge(!isCreatingEdge);
-    setEdgeStart(null); // Reset edge start when toggling
-  };
+  const handleToggleEdgeCreate = useCallback(() => {
+    toggleEdgeCreation();
+  }, [toggleEdgeCreation]);
 
   const handleDescriptionChange = (value: string) => {
     if (selectedNode !== null) {
