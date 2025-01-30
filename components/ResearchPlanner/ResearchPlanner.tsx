@@ -17,6 +17,7 @@ import { SettingsProvider } from './context/SettingsContext';
 import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from './utils/timeline';
 import type { TimelineConfig } from './utils/timeline';
 import { useCalendarIntegration } from './hooks/useCalendarIntegration';
+import { useSelection } from './hooks/useSelection';
 import { addDays } from 'date-fns';
 
 export default function ResearchPlanner() {
@@ -28,19 +29,32 @@ export default function ResearchPlanner() {
     loadFromFile: contextLoadFromFile
   } = useGraphState();
   
-  const { addNode, deleteNode, markNodeObsolete, updateNode } = useNodeOperations();
+  const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
+  
+  const { 
+    addNode, 
+    deleteNode, 
+    markNodeObsolete, 
+    updateNode,
+    addSubnode,
+    collapseToParent,
+    handleNodeDrop,
+    getAllDescendantIds,
+    toggleExpand,
+    updateHull
+  } = useNodeOperations({
+    onExpandedNodesChange: (nodes) => {
+      setExpandedNodes(prev => new Set([...Array.from(prev), ...Array.from(nodes)]));
+    }
+  });
+
   const { createEdge, deleteEdge, updateEdge } = useEdgeOperations();
   
   const [newItemTitle, setNewItemTitle] = useState('');
-  const [selectedNode, setSelectedNode] = useState<number | null>(null);
-  const [selectedNodes, setSelectedNodes] = useState<Set<number>>(new Set());
-  const [selectedEdge, setSelectedEdge] = useState<number | null>(null);
   const [editingNode, setEditingNode] = useState<GraphNode | null>(null);
   const [editingEdge, setEditingEdge] = useState<Edge | null>(null);
-  const [tempDescription, setTempDescription] = useState('');
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
   const [edgeStart, setEdgeStart] = useState<number | null>(null);
-  const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
 
   // Calendar integration
   const { 
@@ -56,6 +70,36 @@ export default function ResearchPlanner() {
     error: calendarError,
     isInitializing: isCalendarInitializing
   } = useCalendarIntegration({ nodes, setNodes });
+
+  const handleNodeDelete = useCallback((id: number) => {
+    // Get the node before deleting it
+    const node = nodes.find(n => n.id === id);
+    if (node?.calendarEventId) {
+      deleteCalendarEvent(node.calendarEventId);
+    }
+    deleteNode(id);
+  }, [nodes, deleteNode, deleteCalendarEvent]);
+
+  // Selection state
+  const {
+    selectedNode,
+    selectedNodes,
+    selectedEdge,
+    tempDescription,
+    latestSelectionRef,
+    handleNodeClick,
+    handleMultiSelect,
+    clearSelections,
+    setTempDescription,
+    setSelectedNode,
+    setSelectedNodes,
+    setSelectedEdge
+  } = useSelection({
+    nodes,
+    edges,
+    onNodeDelete: handleNodeDelete,
+    onNodeCollapse: (nodeId) => toggleExpand(nodeId, false)
+  });
 
   // Initialize expandedNodes from loaded graph data
   useEffect(() => {
@@ -77,35 +121,9 @@ export default function ResearchPlanner() {
   const [selectedGoalNodes, setSelectedGoalNodes] = useState<number[]>([]);
   const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
 
-  const { arrangeNodes, getNewNodePosition } = useLayoutManager();
+  const { arrangeNodes } = useLayoutManager();
   const { getNextId, initializeWithExistingIds } = useIdGenerator();
   const { getNextColor } = useColorGenerator();
-
-  // Add ref for tracking latest selection
-  const latestSelectionRef = useRef<{
-    node: number | null;
-    edge: number | null;
-  }>({ node: null, edge: null });
-
-  // Keep the description sync effect
-  useEffect(() => {
-    const { node: selectedNodeId, edge: selectedEdgeId } = latestSelectionRef.current;
-    
-    if (selectedNodeId !== null) {
-      const node = nodes.find(n => n.id === selectedNodeId);
-      if (node) {
-        setTempDescription(node.description || '');
-      }
-    } else if (selectedEdgeId !== null || selectedEdge !== null) {
-      const edgeId = selectedEdgeId || selectedEdge;
-      const edge = edges.find(e => e.id === edgeId);
-      if (edge) {
-        setTempDescription(edge.description || '');
-      }
-    } else {
-      setTempDescription('');
-    }
-  }, [nodes, edges, selectedEdge]);
 
   const handleAddNode = () => {
     if (!newItemTitle.trim()) return;
@@ -113,124 +131,25 @@ export default function ResearchPlanner() {
     setNewItemTitle('');
   };
 
-  const handleNodeDelete = useCallback((id: number) => {
-    // Get the node before deleting it
-    const node = nodes.find(n => n.id === id);
-    if (node?.calendarEventId) {
-      deleteCalendarEvent(node.calendarEventId);
-    }
-    deleteNode(id);
-  }, [nodes, deleteNode, deleteCalendarEvent]);
-
-  const handleNodeClick = (node: GraphNode, event?: React.MouseEvent) => {
-    if (isCreatingEdge) {
-      handleEdgeCreate(node.id);
-      return;
-    }
-
-    if (isAutocompleteModeActive) {
-      if (autocompleteMode === 'start') {
-        setSelectedStartNodes([node.id]);
-        setAutocompleteMode('goal');
-      } else if (autocompleteMode === 'goal') {
-        setSelectedGoalNodes([node.id]);
-      }
-      return;
-    }
-
-    // Handle ctrl-click multi-selection
-    if (event?.ctrlKey) {
-      const newSelectedNodes = new Set(selectedNodes);
-      if (selectedNodes.has(node.id)) {
-        newSelectedNodes.delete(node.id);
-      } else {
-        newSelectedNodes.add(node.id);
-      }
-      setSelectedNodes(newSelectedNodes);
-      return;
-    }
-
-    // Update ref first
-    latestSelectionRef.current = { node: node.id, edge: null };
-    
-    // Always set description to node's description (even if empty)
-    setTempDescription(node.description || '');
-    
-    // Then update selection state
-    setSelectedNode(node.id);
-    setSelectedNodes(new Set([node.id]));
-    setSelectedEdge(null);
-    setEditingEdge(null);  // Ensure we clear any editing edge state
+  const handleAddSubnode = () => {
+    if (!selectedNode || !newItemTitle.trim()) return;
+    addSubnode(newItemTitle, selectedNode);
+    setNewItemTitle('');
   };
 
-  const handleMultiSelect = useCallback((nodeIds: number[]) => {
-    setSelectedNodes(new Set(nodeIds));
-    setSelectedNode(nodeIds[nodeIds.length - 1] || null);
-    setSelectedEdge(null);
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if we're currently editing in any part of the MDXEditor
-      const activeElement = document.activeElement;
-      const isEditingText = 
-        activeElement?.closest('.mdxeditor-root') !== null ||
-        activeElement?.closest('[contenteditable="true"]') !== null ||
-        activeElement?.closest('.prose') !== null ||
-        activeElement?.tagName === 'INPUT' ||
-        activeElement?.tagName === 'TEXTAREA';
-      
-      if (e.key === 'Delete' && selectedNodes.size > 0 && !isEditingText) {
-        Array.from(selectedNodes).forEach(nodeId => {
-          handleNodeDelete(nodeId);
-        });
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodes, handleNodeDelete]);
-
-  // Add effect to watch for goal node selection
-  useEffect(() => {
-    if (selectedGoalNodes.length > 0 && autocompleteMode === 'goal') {
-      handleAutocompleteGenerate();
-    }
-  }, [selectedGoalNodes]);
+  const handleCollapseToNode = () => {
+    if (selectedNodes.size <= 1 || !newItemTitle.trim()) return;
+    collapseToParent(newItemTitle, Array.from(selectedNodes));
+    setNewItemTitle('');
+  };
 
   const handleEditNode = (node: GraphNode) => {
     // If this is an expansion state change
     if ('isExpanded' in node) {
-      const nodesMap = new Map(nodes.map(n => [n.id, n]));
-      const allDescendants = getAllDescendantIds(node.id, nodesMap);
-      
-      // Update expanded nodes set
-      setExpandedNodes(prev => {
-        const next = new Set(prev);
-        if (node.isExpanded) {
-          next.add(node.id);
-        } else {
-          next.delete(node.id);
-          // Also remove all descendants when collapsing
-          allDescendants.forEach(id => next.delete(id));
-        }
-        return next;
-      });
-
-      // Update all affected nodes
-      setNodes(prev => prev.map(n => {
-        if (n.id === node.id) {
-          return { ...n, isExpanded: node.isExpanded };
-        }
-        // When collapsing, also collapse all descendants
-        if (!node.isExpanded && allDescendants.includes(n.id)) {
-          return { ...n, isExpanded: false };
-        }
-        return n;
-      }));
+      toggleExpand(node.id, Boolean(node.isExpanded));
     }
 
-    // Remove dialog-related code
+    // Handle description update
     if (node.description !== undefined) {
       setEditingNode(node);
       setTempDescription(node.description);
@@ -275,74 +194,58 @@ export default function ResearchPlanner() {
 
     // Update the dragged node
     const updatedNode = { ...node, x, y, day };
+    updateNode(id, updatedNode);
 
-    // If this is a child node, update parent's hull
+    // If this is a child node or parent node, update hull
     if (node.parentId) {
-        const parentNode = nodes.find(n => n.id === node.parentId);
-        if (parentNode) {
-            const siblingNodes = nodes.filter(n => n.parentId === node.parentId);
-            const updatedParent = {
-                ...parentNode,
-                hullPoints: calculateNodeHull(parentNode, [
-                    ...siblingNodes.filter(n => n.id !== id),
-                    updatedNode
-                ])
-            };
-            
-            setNodes(prev => [
-                ...prev.filter(n => n.id !== id && n.id !== node.parentId),
-                updatedParent,
-                updatedNode
-            ]);
-            return;
-        }
+      updateHull(node.parentId, [{ id, x, y }]);
     }
-
-    // If this is a parent node, update its own hull
     if (node.childNodes?.length) {
-        const childNodes = nodes.filter(n => node.childNodes?.includes(n.id));
-        updatedNode.hullPoints = calculateNodeHull(updatedNode, childNodes);
+      updateHull(id, [{ id, x, y }]);
     }
-
-    setNodes(prev => [
-        ...prev.filter(n => n.id !== id),
-        updatedNode
-    ]);
   };
 
   const handleNodesDragEnd = (updates: { id: number; x: number; y: number }[]) => {
     // Track nodes that need to be marked as dirty
     const nodesToMarkDirty = new Set<number>();
+    const hullsToUpdate = new Set<number>();
 
-    setNodes(prevNodes => {
-      const updatedNodes = [...prevNodes];
-      updates.forEach(update => {
-        const index = updatedNodes.findIndex(node => node.id === update.id);
-        if (index !== -1) {
-          const node = updatedNodes[index];
-          
-          // Calculate day if timeline is active
-          let day = node.day;
-          if (timelineActive) {
-            const scale = getTimelineConfig(1);
-            const pixelsPerUnit = getPixelsPerUnit(scale);
-            const gridIndex = Math.floor(update.x / pixelsPerUnit);
-            const date = addDays(timelineStartDate, gridIndex);
-            day = date.toISOString();
-          }
+    updates.forEach(update => {
+      const node = nodes.find(n => n.id === update.id);
+      if (!node) return;
+      
+      // Calculate day if timeline is active
+      let day = node.day;
+      if (timelineActive) {
+        const scale = getTimelineConfig(1);
+        const pixelsPerUnit = getPixelsPerUnit(scale);
+        const gridIndex = Math.floor(update.x / pixelsPerUnit);
+        const date = addDays(timelineStartDate, gridIndex);
+        day = date.toISOString();
+      }
 
-          // If day changed or node gets its first day value, mark for sync
-          if (day !== node.day || (day && !node.calendarEventId)) {
-            nodesToMarkDirty.add(node.id);
-          }
+      // If day changed or node gets its first day value, mark for sync
+      if (day !== node.day || (day && !node.calendarEventId)) {
+        nodesToMarkDirty.add(node.id);
+      }
 
-          updatedNodes[index] = { ...node, x: update.x, y: update.y, day };
-        }
+      // Update the node
+      updateNode(update.id, { 
+        x: update.x, 
+        y: update.y, 
+        day 
       });
-      return updatedNodes;
+
+      // Track hulls that need updating
+      if (node.parentId) {
+        hullsToUpdate.add(node.parentId);
+      }
+      if (node.childNodes?.length) {
+        hullsToUpdate.add(node.id);
+      }
     });
 
-    // Update dirty nodes after the nodes state has been updated
+    // Update dirty nodes
     if (nodesToMarkDirty.size > 0) {
       setDirtyNodes(prev => {
         const next = new Set(prev);
@@ -350,6 +253,9 @@ export default function ResearchPlanner() {
         return next;
       });
     }
+
+    // Update hulls with all updated positions
+    hullsToUpdate.forEach(id => updateHull(id, updates));
   };
 
   const handleEdgeCreate = (nodeId: number) => {
@@ -518,175 +424,31 @@ export default function ResearchPlanner() {
     }
   };
 
-  const handleAddSubnode = () => {
-    if (!selectedNode || !newItemTitle.trim()) return;
-
-    const parentNode = nodes.find(n => n.id === selectedNode);
-    if (!parentNode) return;
-
-    const id = getNextId();
-    const position = getNewNodePosition(nodes, selectedNode);
-    
-    // Create the child node
-    const newNode: GraphNode = {
-        id,
-        title: newItemTitle.trim(),
-        description: '',
-        x: position.x,
-        y: position.y,
-        isObsolete: false,
-        parentId: selectedNode,
-        childNodes: [],
-    };
-
-    // Get all child nodes including the new one
-    const childNodes = [
-        ...nodes.filter(n => n.parentId === selectedNode),
-        newNode
-    ];
-
-    // Calculate hull points
-    const hullPoints = calculateNodeHull(parentNode, childNodes);
-
-    // Update the parent node
-    const updatedParent: GraphNode = {
-        ...parentNode,
-        childNodes: [...(parentNode.childNodes || []), id],
-        isExpanded: true,
-        hullPoints,
-        hullColor: parentNode.hullColor || getNextColor()  // Use existing color or generate new one
-    };
-
-    setNodes(prev => [
-        ...prev.filter(n => n.id !== selectedNode),
-        updatedParent,
-        newNode,
-    ]);
-
-    // Expand the parent node
-    setExpandedNodes(prev => new Set(Array.from(prev).concat([selectedNode])));
-    setNewItemTitle('');
-  };
-
-  // Helper function to get all descendant node IDs recursively
-  const getAllDescendantIds = useCallback((nodeId: number, nodesMap: Map<number, GraphNode>): number[] => {
-    const node = nodesMap.get(nodeId);
-    if (!node?.childNodes?.length) return [];
-    
-    const descendants: number[] = [];
-    const stack = [...node.childNodes];
-    
-    while (stack.length > 0) {
-      const currentId = stack.pop()!;
-      descendants.push(currentId);
-      
-      const currentNode = nodesMap.get(currentId);
-      if (currentNode?.childNodes?.length) {
-        stack.push(...currentNode.childNodes);
-      }
+  const handleNodeClickWrapper = (node: GraphNode, event?: React.MouseEvent) => {
+    if (isCreatingEdge) {
+      handleEdgeCreate(node.id);
+      return;
     }
-    
-    return descendants;
-  }, []);
 
-  // Add ESC key handler for collapsing nodes and clearing selections
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (selectedNode !== null) {
-          const node = nodes.find(n => n.id === selectedNode);
-          if (node?.childNodes?.length) {
-            // Create a map for efficient node lookup
-            const nodesMap = new Map(nodes.map(n => [n.id, n]));
-            
-            // Get all descendant nodes recursively
-            const allDescendants = getAllDescendantIds(selectedNode, nodesMap);
-            
-            // Remove all descendants from expanded nodes set
-            setExpandedNodes(prev => {
-              const next = new Set(prev);
-              allDescendants.forEach(id => next.delete(id));
-              next.delete(selectedNode); // Also collapse the selected node
-              return next;
-            });
-
-            // Update all affected nodes' expanded state
-            setNodes(prev => prev.map(n => {
-              if (n.id === selectedNode || allDescendants.includes(n.id)) {
-                return { ...n, isExpanded: false };
-              }
-              return n;
-            }));
-          }
-        }
-        // Clear all selections regardless
-        setSelectedNode(null);
-        setSelectedNodes(new Set());
-        setSelectedEdge(null);
+    if (isAutocompleteModeActive) {
+      if (autocompleteMode === 'start') {
+        setSelectedStartNodes([node.id]);
+        setAutocompleteMode('goal');
+      } else if (autocompleteMode === 'goal') {
+        setSelectedGoalNodes([node.id]);
       }
-    };
+      return;
+    }
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNode, nodes, getAllDescendantIds]);
-
-  const handleCollapseToNode = () => {
-    if (selectedNodes.size <= 1 || !newItemTitle.trim()) return;
-
-    console.log('Collapsing nodes to parent. Selected nodes:', Array.from(selectedNodes));
-    console.log('Current nodes before collapse:', nodes);
-
-    // Initialize ID generator with existing IDs to ensure uniqueness
-    const existingIds = nodes.map(n => n.id);
-    initializeWithExistingIds(existingIds);
-
-    const selectedNodesList = Array.from(selectedNodes);
-    const selectedNodeObjects = nodes.filter(n => selectedNodes.has(n.id));
-    console.log('Selected node objects:', selectedNodeObjects);
-    
-    // Calculate average position of selected nodes
-    const avgX = selectedNodeObjects.reduce((sum, n) => sum + n.x, 0) / selectedNodeObjects.length;
-    const avgY = selectedNodeObjects.reduce((sum, n) => sum + n.y, 0) / selectedNodeObjects.length;
-
-    // Create the parent node with a guaranteed unique ID
-    const parentNode: GraphNode = {
-      id: getNextId(),
-      title: newItemTitle.trim(),
-      description: '',
-      x: avgX,
-      y: avgY,
-      isObsolete: false,
-      childNodes: selectedNodesList,
-      isExpanded: true,
-      hullColor: getNextColor()  // Set the hull color when creating the parent node
-    };
-
-    // Calculate hull points for the parent
-    const hullPoints = calculateNodeHull(parentNode, selectedNodeObjects);
-    parentNode.hullPoints = hullPoints;
-
-    console.log('Created parent node:', parentNode);
-
-    // Update child nodes with parentId
-    const updatedNodes = nodes.map(node => {
-      if (selectedNodes.has(node.id)) {
-        console.log(`Setting parentId ${parentNode.id} for child node:`, node);
-        return { ...node, parentId: parentNode.id };
-      }
-      return node;
-    });
-    console.log('Updated nodes with new parent IDs:', updatedNodes);
-
-    // Add the new parent node and update state
-    const finalNodes = [...updatedNodes, parentNode];
-    console.log('Final nodes after collapse:', finalNodes);
-    
-    setNodes(finalNodes);
-    setExpandedNodes(prev => new Set([...Array.from(prev), parentNode.id]));
-    setSelectedNodes(new Set([parentNode.id]));
-    setSelectedNode(parentNode.id);
-    setNewItemTitle('');
+    handleNodeClick(node, event);
   };
+
+  // Add effect to watch for goal node selection
+  useEffect(() => {
+    if (selectedGoalNodes.length > 0 && autocompleteMode === 'goal') {
+      handleAutocompleteGenerate();
+    }
+  }, [selectedGoalNodes]);
 
   const handleNodeDragOver = (targetNode: GraphNode) => {
     // Only allow dropping if the target node is not a child of the dragged node
@@ -702,75 +464,6 @@ export default function ResearchPlanner() {
       // Add visual feedback here if needed
     }
   };
-
-  const handleNodeDrop = (sourceId: number, targetId: number) => {
-    const sourceNode = nodes.find(n => n.id === sourceId);
-    const targetNode = nodes.find(n => n.id === targetId);
-    if (!sourceNode || !targetNode) return;
-
-    // Prevent circular parent-child relationships
-    if (targetNode.parentId === sourceNode.id) return;
-
-    // Update the source node with the new parent
-    const updatedSourceNode = {
-        ...sourceNode,
-        parentId: targetId
-    };
-
-    // Get all child nodes including the new one
-    const childNodes = [
-        ...nodes.filter(n => n.parentId === targetId),
-        updatedSourceNode
-    ];
-
-    // Calculate hull points
-    const hullPoints = calculateNodeHull(targetNode, childNodes);
-
-    // Update the target node's childNodes array, mark as expanded, and set hull
-    const updatedTargetNode = {
-        ...targetNode,
-        childNodes: [...(targetNode.childNodes || []), sourceId],
-        isExpanded: true,
-        hullPoints,
-        hullColor: targetNode.hullColor || getNextColor()  // Use existing color or generate new one
-    };
-
-    // Update nodes array and ensure isExpanded is set correctly for all nodes
-    setNodes(prev => prev.map(node => {
-        if (node.id === sourceId) return updatedSourceNode;
-        if (node.id === targetId) return updatedTargetNode;
-        // For all other nodes, ensure isExpanded matches the expandedNodes set
-        return {
-            ...node,
-            isExpanded: expandedNodes.has(node.id)
-        };
-    }));
-
-    // Ensure the parent node is expanded
-    setExpandedNodes(prev => new Set([...Array.from(prev), targetId]));
-  };
-
-  const onToggleExpand = useCallback((nodeId: number) => {
-    setNodes(prev => prev.map(node => {
-      if (node.id === nodeId) {
-        return {
-          ...node,
-          isExpanded: !expandedNodes.has(nodeId)
-        };
-      }
-      return node;
-    }));
-
-    setExpandedNodes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
-    });
-  }, [expandedNodes]);
 
   return (
     <SettingsProvider>
@@ -814,7 +507,7 @@ export default function ResearchPlanner() {
               selectedEdge={selectedEdge}
               isCreatingEdge={isCreatingEdge}
               edgeStart={edgeStart}
-              onNodeClick={handleNodeClick}
+              onNodeClick={handleNodeClickWrapper}
               onNodeEdit={handleEditNode}
               onNodeDelete={handleNodeDelete}
               onEdgeEdit={handleEditEdge}
