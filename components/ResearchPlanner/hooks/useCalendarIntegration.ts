@@ -22,6 +22,7 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
   const [dirtyNodes, setDirtyNodes] = useState<Set<number>>(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
   const initialLoadRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
   const calendar = useGoogleCalendar({
     clientId: GOOGLE_CLIENT_ID,
@@ -110,8 +111,8 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
             setNodes((prev: GraphNode[]) => prev.map((n: GraphNode) => 
               n.id === node.id ? { ...n, calendarEventId: eventId } : n
             ));
-          } catch (error) {
-            console.error('Failed to create event for node:', node.title, error);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred');
           }
         }
 
@@ -134,12 +135,12 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
               next.delete(node.id);
               return next;
             });
-          } catch (error) {
-            console.error('Failed to update node:', node.title, error);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred');
           }
         }
-      } catch (error) {
-        console.error('Failed during calendar sync:', error);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsSyncing(false);
       }
@@ -152,8 +153,8 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
     if (isCalendarSyncEnabled && calendar.isAuthenticated) {
       try {
         await calendar.deleteNode(eventId);
-      } catch (error) {
-        console.error('Failed to delete calendar event:', error);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
       }
     }
   };
@@ -168,7 +169,7 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
     dirtyNodes,
     login: calendar.login,
     logout: calendar.logout,
-    error: calendar.error,
+    error: error,
     isInitializing: calendar.isInitializing
   };
 } 

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Toolbar } from './components/Toolbar/Toolbar';
 import { NodeGraph } from './components/NodeGraph/NodeGraph';
 import { SidePanel } from './components/SidePanel/SidePanel';
 import { GraphNode, Edge, GraphData } from './types/index';
@@ -18,6 +17,7 @@ import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from './utils/timelin
 import type { TimelineConfig } from './utils/timeline';
 import { useCalendarIntegration } from './hooks/useCalendarIntegration';
 import { addDays } from 'date-fns';
+import { SideToolbar } from './components/Toolbar/SideToolbar';
 
 export default function ResearchPlanner() {
   const { 
@@ -769,41 +769,49 @@ export default function ResearchPlanner() {
     });
   }, [expandedNodes]);
 
+  // Add state for side toolbar expansion
+  const [isSideToolbarExpanded, setIsSideToolbarExpanded] = useState(true);
+
   return (
     <SettingsProvider>
-      <div className="flex h-full w-full bg-gray-50">
-        {/* Main Graph Area (2/3) */}
-        <div className="w-2/3 h-full p-4 flex flex-col">
-          <Toolbar
-            nodeTitle={newItemTitle}
-            onNodeTitleChange={setNewItemTitle}
-            onAddNode={handleAddNode}
-            onAddSubnode={handleAddSubnode}
-            onCollapseToNode={handleCollapseToNode}
-            selectedNodeId={selectedNode}
-            selectedNodes={selectedNodes}
-            isCreatingEdge={isCreatingEdge}
-            onToggleEdgeCreate={handleToggleEdgeCreate}
-            isAutocompleteModeActive={isAutocompleteModeActive}
-            onToggleAutocomplete={handleAutocompleteToggle}
-            autocompleteMode={autocompleteMode}
-            isAutocompleteLoading={isAutocompleteLoading}
-            isTimelineActive={timelineActive}
-            onTimelineToggle={setTimelineActive}
-            timelineStartDate={timelineStartDate}
-            onTimelineStartDateChange={setTimelineStartDate}
-            isCalendarSyncEnabled={isCalendarSyncEnabled}
-            onCalendarSyncToggle={setIsCalendarSyncEnabled}
-            isCalendarAuthenticated={isCalendarAuthenticated}
-            onCalendarLogin={calendarLogin}
-            onCalendarSignOut={calendarLogout}
-            isCalendarInitializing={isCalendarInitializing}
-            calendarError={calendarError}
-            isSyncing={isSyncing}
-            dirtyNodesCount={dirtyNodes.size}
-          />
-          
-          <div className="flex-1 h-0">
+      <div className="flex h-full w-full overflow-hidden">
+        {/* Side Toolbar (Left) */}
+        <SideToolbar
+          nodeTitle={newItemTitle}
+          onNodeTitleChange={setNewItemTitle}
+          onAddNode={handleAddNode}
+          onAddSubnode={handleAddSubnode}
+          onCollapseToNode={handleCollapseToNode}
+          selectedNodeId={selectedNode}
+          selectedNodes={selectedNodes}
+          isCreatingEdge={isCreatingEdge}
+          onToggleEdgeCreate={handleToggleEdgeCreate}
+          isAutocompleteModeActive={isAutocompleteModeActive}
+          onToggleAutocomplete={handleAutocompleteToggle}
+          autocompleteMode={autocompleteMode}
+          isAutocompleteLoading={isAutocompleteLoading}
+          isTimelineActive={timelineActive}
+          onTimelineToggle={setTimelineActive}
+          timelineStartDate={timelineStartDate}
+          onTimelineStartDateChange={setTimelineStartDate}
+          isCalendarSyncEnabled={isCalendarSyncEnabled}
+          onCalendarSyncToggle={setIsCalendarSyncEnabled}
+          isCalendarAuthenticated={isCalendarAuthenticated}
+          onCalendarLogin={calendarLogin}
+          onCalendarSignOut={calendarLogout}
+          isCalendarInitializing={isCalendarInitializing}
+          calendarError={calendarError}
+          isSyncing={isSyncing}
+          dirtyNodesCount={dirtyNodes.size}
+          onSaveToFile={contextSaveToFile}
+          onLoadFromFile={contextLoadFromFile}
+          isExpanded={isSideToolbarExpanded}
+          onToggleExpand={() => setIsSideToolbarExpanded(!isSideToolbarExpanded)}
+        />
+
+        {/* Main Graph Area */}
+        <div className="flex-1 h-full overflow-hidden flex flex-col">
+          <div className="flex-1 relative">
             <NodeGraph
               nodes={nodes}
               edges={edges}
@@ -832,19 +840,9 @@ export default function ResearchPlanner() {
               timelineStartDate={timelineStartDate}
             />
           </div>
-
-          {/* File operations buttons */}
-          <div className="mt-4 flex gap-2">
-            <Button variant="outline" onClick={contextSaveToFile}>
-              Save to File
-            </Button>
-            <Button variant="outline" onClick={contextLoadFromFile}>
-              Load from File
-            </Button>
-          </div>
         </div>
 
-        {/* Side Panel (1/3) */}
+        {/* Side Panel (Right) */}
         <SidePanel
           selectedNode={nodes.find(n => n.id === selectedNode) || null}
           selectedEdge={edges.find(e => e.id === selectedEdge) || null}

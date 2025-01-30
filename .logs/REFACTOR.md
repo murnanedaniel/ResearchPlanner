@@ -103,3 +103,38 @@ The ResearchPlanner.tsx component has grown to over 1000 lines, making it diffic
 2. Create test coverage baseline
 3. Extract one feature at a time
 4. Verify functionality after each extraction
+
+# Refactoring Log
+
+## 2024-03-19: Major UI Layout Refactor
+
+### Changes
+- Moved all toolbar functionality into a new collapsible side toolbar on the left side
+- Organized toolbar features into accordion sections for better organization:
+  - Node Operations
+  - Edge Operations
+  - AI Autocomplete
+  - Timeline
+  - Calendar Integration
+  - File Operations
+- Maintained the existing right side panel for node/edge editing
+- Added smooth expand/collapse animation for the side toolbar
+- Improved overall UI organization and accessibility
+
+### Technical Details
+- Created new `SideToolbar` component with accordion sections
+- Added Radix UI components for better accessibility
+- Implemented state management for toolbar expansion
+- Removed old toolbar components
+- Updated main layout to use a three-panel design:
+  1. Collapsible left toolbar (new)
+  2. Main graph area (center)
+  3. Node/edge editor panel (right)
+
+### Dependencies Added
+- @radix-ui/react-accordion
+- @radix-ui/react-switch
+- @radix-ui/react-label
+- class-variance-authority
+- clsx
+- tailwind-merge
