@@ -20,40 +20,38 @@ The ResearchPlanner.tsx component has grown to over 1000 lines, making it diffic
    - Added proper TypeScript types
    - Status: Complete
 
-2. **Selection System** 🚧 (2024-03-20)
-   - Creating `hooks/useSelection.ts`
-   - Moving selection state management
-   - Handling keyboard shortcuts
-   - Multi-select operations
-   - Selection box logic
-   - Status: In Progress
-
-3. **Node Operations**
+2. **Node Operations**
    - Extend existing `hooks/useNodeOperations.ts`
    - Node CRUD operations
    - Parent-child relationships
    - Position management
    - Hull calculations
 
-4. **Edge Operations**
+3. **Edge Operations**
    - Enhance existing `hooks/useEdgeOperations.ts`
    - Edge creation workflow
    - Edge update handlers
    - Edge deletion logic
 
-5. **Drag-and-Drop System**
+4. **Drag-and-Drop System**
    - Create `hooks/useDragHandlers.ts`
    - Node dragging logic
    - Position calculations
    - Multi-select drag operations
    - Grid snapping
 
-6. **Autocomplete Feature**
+5. **Autocomplete Feature**
    - Create `hooks/useAutocomplete.ts`
    - Start/goal node selection
    - Path generation
    - API communication
    - State management
+
+6. **Selection System**
+   - Create `hooks/useSelectionHandlers.ts`
+   - Single/multi selection
+   - Keyboard shortcuts
+   - Selection box logic
 
 ### Implementation Plan
 
