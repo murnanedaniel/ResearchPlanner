@@ -100,3 +100,11 @@
   - Local storage integration
   - File export/import support
   - Session state management
+
+## 2024-03-20
+- Refactored calendar integration into a dedicated hook
+  - Created `useCalendarIntegration` hook
+  - Moved all calendar-related state and effects
+  - Improved type safety with proper interfaces
+  - Reduced ResearchPlanner.tsx complexity
+  - Maintained all existing functionality

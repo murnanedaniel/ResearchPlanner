@@ -1,306 +1,105 @@
-# ResearchGraph Refactoring Plan
+## ResearchPlanner Component Size Reduction
 
-## 2024-01-14: Remove Unused Dialog Components
+### Problem
+The ResearchPlanner.tsx component has grown to over 1000 lines, making it difficult to maintain. We need to break it down into smaller, more manageable modules of ~200 lines each.
 
-Removed unused legacy dialog components that were replaced by the SidePanel:
-- Removed `NodeDialog/` - functionality moved to SidePanel's NodeEditor
-- Removed `EdgeDialog/` - functionality moved to SidePanel's EdgeEditor
-- Removed `BreadcrumbNav/` - unused component
-- Cleaned up related state variables in ResearchPlanner.tsx
+### Analysis
 
-## Current Architecture Issues
+#### Current Component Statistics
+- **Location**: components/ResearchPlanner/ResearchPlanner.tsx
+- **Current Size**: ~1000+ lines
+- **Target Size**: ~200 lines per module
 
-1. **Monolithic Component Structure**
-   - `ResearchPlanner.tsx` is too large (~900 lines) and handles too many responsibilities
-   - State management, event handling, and UI rendering are tightly coupled
-   - Multiple features (nodes, edges, timeline, autocomplete) are intertwined
+#### Key Areas to Extract
 
-2. **State Management Complexity**
-   - Many interdependent state variables
-   - Complex state updates spread across multiple handlers
-   - No clear separation between different feature states
+1. **Calendar Integration** ✅ (2024-03-20)
+   - Created `hooks/useCalendarIntegration.ts`
+   - Moved all calendar-related state and effects
+   - Encapsulated Google Calendar initialization
+   - Unified calendar sync logic
+   - Added proper TypeScript types
+   - Status: Complete
 
-3. **Event Handler Sprawl**
-   - Many handlers in the main component
-   - Similar handlers not grouped by feature
-   - Some handlers have mixed responsibilities
+2. **Node Operations**
+   - Extend existing `hooks/useNodeOperations.ts`
+   - Node CRUD operations
+   - Parent-child relationships
+   - Position management
+   - Hull calculations
 
-4. **Component Organization**
-   - `NodeGraph` component is handling too much (rendering, events, zoom)
-   - Edge rendering logic mixed with node rendering
-   - Timeline features mixed with core graph features
+3. **Edge Operations**
+   - Enhance existing `hooks/useEdgeOperations.ts`
+   - Edge creation workflow
+   - Edge update handlers
+   - Edge deletion logic
 
-## Proposed Architecture
+4. **Drag-and-Drop System**
+   - Create `hooks/useDragHandlers.ts`
+   - Node dragging logic
+   - Position calculations
+   - Multi-select drag operations
+   - Grid snapping
 
-### 1. Feature-Based Organization
-Split the codebase into clear feature modules:
+5. **Autocomplete Feature**
+   - Create `hooks/useAutocomplete.ts`
+   - Start/goal node selection
+   - Path generation
+   - API communication
+   - State management
 
-```
-components/ResearchPlanner/
-├── features/
-│   ├── nodes/           # Node-related components and logic
-│   ├── edges/           # Edge-related components and logic
-│   ├── timeline/        # Timeline feature components
-│   ├── autocomplete/    # AI autocomplete feature
-│   └── selection/       # Selection and multi-select logic
-├── hooks/               # Shared hooks
-├── utils/              # Shared utilities
-├── types/              # TypeScript types
-└── context/            # React Context providers
-```
+6. **Selection System**
+   - Create `hooks/useSelectionHandlers.ts`
+   - Single/multi selection
+   - Keyboard shortcuts
+   - Selection box logic
 
-### 2. State Management Layers
+### Implementation Plan
 
-```typescript
-// Top-level providers
-<GraphStateProvider>      // Core graph state
-  <SelectionProvider>     // Selection state
-    <TimelineProvider>    // Timeline feature
-      <AutocompleteProvider>  // AI features
-        <ResearchPlanner />
-      </AutocompleteProvider>
-    </TimelineProvider>
-  </SelectionProvider>
-</GraphStateProvider>
-```
+1. **Phase 1: Calendar Integration** (Week 1)
+   - [ ] Create useCalendarSync hook
+   - [ ] Move calendar effects
+   - [ ] Update ResearchPlanner imports
+   - [ ] Verify calendar functionality
 
-### 3. Core Feature Modules
+2. **Phase 2: Node Operations** (Week 1)
+   - [ ] Extend useNodeOperations
+   - [ ] Move node handlers
+   - [ ] Update component logic
+   - [ ] Test node operations
 
-#### a. Graph Core
-- `GraphStateProvider` - Manages core node/edge state
-- `useGraphState` - Hook for accessing graph state
-- `useGraphOperations` - Hook for graph operations
+3. **Phase 3: Edge System** (Week 2)
+   - [ ] Enhance useEdgeOperations
+   - [ ] Move edge creation logic
+   - [ ] Update edge handlers
+   - [ ] Verify edge functionality
 
-#### b. Selection System
-- `SelectionProvider` - Manages selection state
-- `useSelection` - Hook for selection operations
-- `useMultiSelect` - Hook for multi-select features
+4. **Phase 4: Drag-and-Drop** (Week 2)
+   - [ ] Create useDragHandlers
+   - [ ] Move position logic
+   - [ ] Update drag operations
+   - [ ] Test dragging behavior
 
-#### c. Timeline Feature
-- `TimelineProvider` - Timeline state and operations
-- `useTimeline` - Hook for timeline features
-- `TimelineGrid` - Timeline visualization
+5. **Phase 5: Autocomplete** (Week 3)
+   - [ ] Create useAutocomplete
+   - [ ] Move pathfinding logic
+   - [ ] Update UI integration
+   - [ ] Test autocomplete feature
 
-#### d. Autocomplete Feature
-- `AutocompleteProvider` - AI feature state
-- `useAutocomplete` - Hook for AI operations
-- `AutocompleteControls` - UI controls
+6. **Phase 6: Selection System** (Week 3)
+   - [ ] Create useSelectionHandlers
+   - [ ] Move selection logic
+   - [ ] Update keyboard shortcuts
+   - [ ] Test selection behavior
 
-### 4. Component Hierarchy
+### Success Criteria
+- Each extracted module is under 200 lines
+- All functionality remains intact
+- Test coverage maintained or improved
+- Clear separation of concerns
+- Improved maintainability
 
-```
-ResearchPlanner
-├── Toolbar
-│   ├── NodeControls
-│   ├── EdgeControls
-│   ├── TimelineControls
-│   └── AutocompleteControls
-├── NodeGraph
-│   ├── Node
-│   ├── Edge
-│   ├── SelectionBox
-│   ├── TimelineGrid
-│   └── ZoomControls
-└── SidePanel
-    ├── NodeEditor
-    └── EdgeEditor
-```
-
-### 5. API Layer
-```
-api/
-├── autocomplete/
-│   ├── route.ts
-│   └── types.ts
-└── shared/
-    ├── client.ts
-    └── errors.ts
-```
-
-### 6. Testing Structure
-```
-__tests__/
-├── components/
-│   ├── ResearchPlanner/
-│   │   ├── features/
-│   │   └── components/
-├── hooks/
-└── api/
-```
-
-## Refactoring Phases
-
-### Phase 1: State Management
-- Create context providers
-- Move state into appropriate providers
-- Create hooks for state access
-
-**Key Tasks:**
-1. Create `GraphStateProvider` and move node/edge state
-2. Create `SelectionProvider` for selection management
-3. Create `TimelineProvider` for timeline features
-4. Create `AutocompleteProvider` for AI features
-5. Create corresponding hooks for each provider
-6. Integrate with existing hooks (`useLayoutManager`, `useGraphPersistence`)
-
-### Phase 2: Feature Modules
-- Create feature-specific directories
-- Move components to appropriate features
-- Create feature-specific hooks
-
-**Key Tasks:**
-1. Set up feature directory structure
-2. Move node-related code to nodes feature
-3. Move edge-related code to edges feature
-4. Move timeline code to timeline feature
-5. Move autocomplete code to autocomplete feature
-6. Create feature-specific hooks and utilities
-7. Implement planned hooks (`useNodeSelection`, `useProjectStorage`)
-
-### Phase 3: Component Cleanup
-- Split large components
-- Create new smaller components
-- Improve prop interfaces
-
-**Key Tasks:**
-1. Split `NodeGraph` into smaller components
-2. Create separate `Edge` component
-3. Create dedicated `ZoomControls` component
-4. Split `Toolbar` into feature-specific controls
-5. Improve `SidePanel` organization
-6. Extract MDX editor configuration into separate module
-
-### Phase 4: Type System
-- Create proper TypeScript interfaces
-- Add strict typing to hooks
-- Improve error handling
-
-**Key Tasks:**
-1. Create comprehensive type definitions
-2. Add proper typing to all hooks
-3. Improve component prop types
-4. Add error boundaries and handling
-5. Add TypeScript types for API responses
-
-### Phase 5: API Layer
-- Create proper API structure
-- Add error handling
-- Improve type safety
-
-**Key Tasks:**
-1. Create API client utilities
-2. Add proper error handling
-3. Add request/response type definitions
-4. Add API documentation
-5. Implement proper error responses
-
-### Phase 6: Testing Infrastructure
-- Maintain and improve test coverage
-- Add new tests for refactored components
-
-**Key Tasks:**
-1. Update existing tests for new structure
-2. Add tests for new hooks
-3. Add API endpoint tests
-4. Add integration tests
-5. Set up testing utilities
-
-## Implementation Strategy
-
-1. **Start Small**
-   - Begin with one feature module (e.g., nodes)
-   - Create the provider and hooks
-   - Move related components
-   - Test thoroughly before moving to next feature
-
-2. **Maintain Functionality**
-   - Keep existing code working while refactoring
-   - Add tests before making changes
-   - Use feature flags if needed
-   - Maintain MDX editor functionality
-
-3. **Document Changes**
-   - Update documentation as we go
-   - Add comments explaining new patterns
-   - Keep this refactor doc updated with progress
-   - Document API endpoints
-
-## Progress Tracking
-
-- [x] Phase 1: State Management
-  - [x] GraphStateProvider (Basic implementation complete)
-    - Created GraphContext with nodes/edges state
-    - Added file operations (save/load)
-    - Added timeline state management
-    - Added proper type handling
-  - [ ] SelectionProvider
-  - [ ] TimelineProvider
-  - [ ] AutocompleteProvider
-  - [x] Integration with existing hooks
-    - Integrated with useGraphPersistence
-    - Maintained compatibility with useLayoutManager
-    - Added useNodeOperations for node state management
-    - Added useEdgeOperations for edge state management
-
-- [ ] Phase 2: Feature Modules
-  - [x] Nodes Feature
-    - Created useNodeOperations hook
-    - Moved node operations from ResearchPlanner
-    - Added proper type handling
-  - [x] Edges Feature
-    - Created useEdgeOperations hook
-    - Moved edge operations from ResearchPlanner
-    - Added edge selection highlighting
-  - [ ] Timeline Feature
-  - [ ] Autocomplete Feature
-  - [ ] Implement planned hooks
-
-- [ ] Phase 3: Component Cleanup
-  - [x] NodeGraph Refactor
-    - Split into GraphContent and NodeGraph
-    - Improved edge rendering with selection state
-    - Fixed zoom controls and container sizing
-  - [ ] Toolbar Refactor
-  - [ ] SidePanel Refactor
-  - [ ] MDX Editor Module
-
-- [ ] Phase 4: Type System
-  - [x] Core Types
-    - Updated GraphData interface
-    - Added proper typing for node/edge operations
-    - Fixed type issues with selection state
-  - [ ] Hook Types
-  - [ ] Component Props
-  - [ ] Error Handling
-  - [ ] API Types
-
-- [ ] Phase 5: API Layer
-  - [ ] API Client
-  - [ ] Error Handling
-  - [ ] Type Definitions
-  - [ ] Documentation
-  - [ ] Error Responses
-
-- [ ] Phase 6: Testing Infrastructure
-  - [ ] Update Existing Tests
-  - [ ] New Hook Tests
-  - [ ] API Tests
-  - [ ] Integration Tests
-  - [ ] Testing Utilities
-
-## Next Steps
-
-1. Continue with Phase 1: Move selection state into its own provider
-   - Create SelectionProvider for managing selected nodes/edges
-   - Move selection-related state and handlers from ResearchPlanner
-   - Update components to use the new provider
-
-2. Improve error handling in GraphProvider
-   - Add proper error boundaries
-   - Improve type safety
-   - Add loading states
-
-3. Begin extracting feature modules
-   - Start with nodes feature
-   - Create proper directory structure
-   - Move related components and hooks
+### Next Steps
+1. Begin with Calendar Integration
+2. Create test coverage baseline
+3. Extract one feature at a time
+4. Verify functionality after each extraction
