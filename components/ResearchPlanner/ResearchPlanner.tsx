@@ -131,11 +131,20 @@ export default function ResearchPlanner() {
   }, [nodes, deleteNode, deleteCalendarEvent]);
 
   const handleNodeClick = (node: GraphNode, event?: React.MouseEvent) => {
+    // Handle edge creation mode
     if (isCreatingEdge) {
       handleEdgeCreate(node.id);
       return;
     }
 
+    // Handle alt-click for edge creation
+    if (event?.altKey) {
+      toggleEdgeCreation();
+      handleEdgeCreate(node.id);  // Set this node as the start point
+      return;
+    }
+
+    // Handle autocomplete mode
     if (isAutocompleteModeActive) {
       if (autocompleteMode === 'start') {
         setSelectedStartNodes([node.id]);
@@ -779,7 +788,7 @@ export default function ResearchPlanner() {
   }, [expandedNodes]);
 
   // Add state for side toolbar expansion
-  const [isSideToolbarExpanded, setIsSideToolbarExpanded] = useState(true);
+  const [isSideToolbarExpanded, setIsSideToolbarExpanded] = useState(false);
 
   const handleGraphDoubleClick = (x: number, y: number, event: React.MouseEvent) => {
     // If timeline is active, set the day property based on x coordinate
@@ -810,6 +819,18 @@ export default function ResearchPlanner() {
     setSelectedNode(newNode.id);
     setSelectedNodes(new Set([newNode.id]));
   };
+
+  // Add this effect after the other useEffect hooks
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isCreatingEdge) {
+        toggleEdgeCreation();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCreatingEdge, toggleEdgeCreation]);
 
   return (
     <SettingsProvider>
