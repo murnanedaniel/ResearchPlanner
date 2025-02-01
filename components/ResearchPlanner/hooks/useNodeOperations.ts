@@ -45,6 +45,24 @@ export function useNodeOperations() {
     );
   }, [setNodes]);
 
+  const createNodeAtPosition = useCallback((title: string, x: number, y: number) => {
+    if (!title.trim()) return;
+    const existingIds = nodes.map(n => n.id);
+    initializeWithExistingIds(existingIds);
+    const id = getNextId();
+    const newNode: GraphNode = {
+      id,
+      title: title.trim(),
+      x,
+      y,
+      description: '',
+      isObsolete: false
+    };
+
+    setNodes(prevNodes => [...prevNodes, newNode]);
+    return newNode;
+  }, [nodes, getNextId, setNodes, initializeWithExistingIds]);
+
   const getDownstreamNodes = useCallback((startNodeId: number): Set<number> => {
     const downstream = new Set<number>([startNodeId]);
     const queue = [startNodeId];
@@ -93,5 +111,6 @@ export function useNodeOperations() {
     updateNode,
     markNodeObsolete,
     getDownstreamNodes,
+    createNodeAtPosition
   };
 } 

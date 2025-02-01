@@ -28,7 +28,7 @@ export default function ResearchPlanner() {
     loadFromFile: contextLoadFromFile
   } = useGraphState();
   
-  const { addNode, deleteNode, markNodeObsolete, updateNode } = useNodeOperations();
+  const { addNode, deleteNode, markNodeObsolete, updateNode, createNodeAtPosition } = useNodeOperations();
   const { 
     createEdge, 
     deleteEdge, 
@@ -384,6 +384,15 @@ export default function ResearchPlanner() {
   const handleTitleChange = (value: string) => {
     if (selectedNode !== null) {
       updateNode(selectedNode, { title: value });
+      // Mark node as needing sync if it has a day property
+      const node = nodes.find(n => n.id === selectedNode);
+      if (node?.day) {
+        setDirtyNodes(prev => {
+          const next = new Set(prev);
+          next.add(selectedNode);
+          return next;
+        });
+      }
     } else if (selectedEdge !== null) {
       updateEdge(selectedEdge, { title: value });
     }
@@ -772,6 +781,36 @@ export default function ResearchPlanner() {
   // Add state for side toolbar expansion
   const [isSideToolbarExpanded, setIsSideToolbarExpanded] = useState(true);
 
+  const handleGraphDoubleClick = (x: number, y: number, event: React.MouseEvent) => {
+    // If timeline is active, set the day property based on x coordinate
+    let day = undefined;
+    if (timelineActive) {
+      const scale = getTimelineConfig(1); // Always use daily scale for now
+      const pixelsPerUnit = getPixelsPerUnit(scale);
+      const gridIndex = Math.floor(x / pixelsPerUnit);
+      const date = addDays(timelineStartDate, gridIndex);
+      day = date.toISOString();
+    }
+
+    const newNode = createNodeAtPosition('New Node', x, y);
+    if (!newNode) return;
+
+    // If we have a day value, update the node with it and mark for sync
+    if (day) {
+      updateNode(newNode.id, { day });
+      setDirtyNodes(prev => {
+        const next = new Set(prev);
+        next.add(newNode.id);
+        return next;
+      });
+    }
+
+    // Set the new node to be edited immediately
+    setEditingNode(newNode);
+    setSelectedNode(newNode.id);
+    setSelectedNodes(new Set([newNode.id]));
+  };
+
   return (
     <SettingsProvider>
       <div className="flex h-full w-full overflow-hidden">
@@ -838,6 +877,7 @@ export default function ResearchPlanner() {
               onNodeDrop={handleNodeDrop}
               isTimelineActive={timelineActive}
               timelineStartDate={timelineStartDate}
+              onGraphDoubleClick={handleGraphDoubleClick}
             />
           </div>
         </div>

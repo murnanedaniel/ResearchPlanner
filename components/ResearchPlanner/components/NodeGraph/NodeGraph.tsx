@@ -57,6 +57,7 @@ interface NodeGraphProps {
     onNodeDrop: (sourceId: number, targetId: number) => void;
     isTimelineActive: boolean;
     timelineStartDate: Date;
+    onGraphDoubleClick?: (x: number, y: number, event: React.MouseEvent) => void;
 }
 
 interface SelectionBox {
@@ -139,11 +140,12 @@ function GraphContent({
     onNodeDragOver,
     onNodeDrop,
     isCtrlPressed,
+    currentScale,
+    transformState,
     isTimelineActive,
     timelineStartDate,
-    currentScale,
-    transformState
-}: NodeGraphProps & { isCtrlPressed: boolean; currentScale: number; transformState: any }) {
+    onGraphDoubleClick
+}: NodeGraphProps & { isCtrlPressed: boolean; currentScale: number; transformState: any }): JSX.Element {
     const { settings } = useSettings();
     const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
     const transformContext = useTransformContext();
@@ -314,6 +316,15 @@ function GraphContent({
         }
     };
 
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        // Prevent interfering with other events
+        e.stopPropagation();
+        if (onGraphDoubleClick) {
+            const point = getTransformedPoint(e.clientX, e.clientY);
+            onGraphDoubleClick(point.x, point.y, e);
+        }
+    };
+
     return (
         <div 
             className="relative"
@@ -322,6 +333,7 @@ function GraphContent({
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            onDoubleClick={handleDoubleClick}
         >
             <svg className="absolute top-0 left-0 w-full h-full overflow-visible" style={{ zIndex: 0 }}>
                 <defs>
@@ -520,7 +532,8 @@ export function NodeGraph({
     onNodeDragOver,
     onNodeDrop,
     isTimelineActive,
-    timelineStartDate
+    timelineStartDate,
+    onGraphDoubleClick
 }: NodeGraphProps) {
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
     const [initialPosition, setInitialPosition] = useState({ x: 0, y: 0 });
@@ -561,6 +574,7 @@ export function NodeGraph({
                 centerOnInit={true}
                 initialPositionX={-500}
                 initialPositionY={-500}
+                doubleClick={{ disabled: true }}
                 panning={{
                     disabled: isCtrlPressed,
                     velocityDisabled: true,
@@ -609,10 +623,11 @@ export function NodeGraph({
                         onNodeDragOver={onNodeDragOver}
                         onNodeDrop={onNodeDrop}
                         isCtrlPressed={isCtrlPressed}
-                        isTimelineActive={isTimelineActive}
-                        timelineStartDate={timelineStartDate}
                         currentScale={currentScale}
                         transformState={transformState}
+                        isTimelineActive={isTimelineActive}
+                        timelineStartDate={timelineStartDate}
+                        onGraphDoubleClick={onGraphDoubleClick}
                     />
                 </TransformComponent>
                 <ZoomControls />
