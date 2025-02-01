@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronRight, ChevronLeft, Plus, GitMerge, Calendar as CalendarIcon, Save, Upload, Network, Loader2, Cloud, Check } from "lucide-react";
 import { format } from "date-fns";
 
@@ -229,13 +231,25 @@ export function SideToolbar({
                   </div>
                   {isTimelineActive && (
                     <div className="space-y-2">
-                      <Label>Start Date</Label>
-                      <Calendar
-                        mode="single"
-                        selected={timelineStartDate}
-                        onSelect={(date) => date && onTimelineStartDateChange(date)}
-                        className="rounded-md border"
-                      />
+                      <div className="flex items-center justify-between">
+                        <Label>Start Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <CalendarIcon className="h-4 w-4 mr-2" />
+                              {format(timelineStartDate, 'PP')}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="end">
+                            <Calendar
+                              mode="single"
+                              selected={timelineStartDate}
+                              onSelect={(date) => date && onTimelineStartDateChange(date)}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
                   )}
                 </div>
