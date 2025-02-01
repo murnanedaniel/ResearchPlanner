@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ChevronRight, ChevronLeft, Plus, GitMerge, Calendar as CalendarIcon, Save, Upload, Network } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, GitMerge, Calendar as CalendarIcon, Save, Upload, Network, Loader2, Cloud, Check } from "lucide-react";
 import { format } from "date-fns";
 
 interface SideToolbarProps {
@@ -105,7 +105,7 @@ export function SideToolbar({
   onToggleExpand,
 }: SideToolbarProps) {
   return (
-    <div className={`h-full border-r bg-white transition-all duration-300 ${isExpanded ? 'w-80' : 'w-12'}`}>
+    <div className={`h-full border-r bg-white transition-all duration-300 flex flex-col ${isExpanded ? 'w-80' : 'w-12'}`}>
       {/* Expand/Collapse Button */}
       <Button
         variant="ghost"
@@ -116,9 +116,25 @@ export function SideToolbar({
         {isExpanded ? <ChevronLeft /> : <ChevronRight />}
       </Button>
 
-      {/* Main Content - Only show when expanded */}
+      {/* Sync Status - Always visible in collapsed state */}
+      {!isExpanded && (
+        <div className="w-12 h-12 flex items-center justify-center border-t">
+          {isSyncing ? (
+            <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+          ) : dirtyNodesCount > 0 ? (
+            <div className="relative">
+              <Cloud className="h-4 w-4 text-slate-500" />
+              <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-orange-500" />
+            </div>
+          ) : (
+            <Check className="h-4 w-4 text-green-500" />
+          )}
+        </div>
+      )}
+
+      {/* Expanded Content */}
       {isExpanded && (
-        <div className="p-4">
+        <div className="flex-1 p-4 overflow-y-auto">
           <Accordion type="multiple" className="w-full">
             {/* Node Operations */}
             <AccordionItem value="nodes">
