@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronRight, ChevronLeft, Plus, GitMerge, Calendar as CalendarIcon, Save, Upload, Network, Loader2, Cloud, Check } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, GitMerge, Calendar as CalendarIcon, Save, Upload, Network, Loader2, Cloud, Check, Github } from "lucide-react";
 import { format } from "date-fns";
 
 interface SideToolbarProps {
@@ -135,185 +135,230 @@ export function SideToolbar({
       )}
 
       {/* Expanded Content */}
-      {isExpanded && (
-        <div className="flex-1 p-4 overflow-y-auto">
-          <Accordion type="multiple" className="w-full">
-            {/* Node Operations */}
-            <AccordionItem value="nodes">
-              <AccordionTrigger className="text-sm font-medium">
-                Node Operations
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Input
-                      value={nodeTitle}
-                      onChange={(e) => onNodeTitleChange(e.target.value)}
-                      placeholder="Enter node title..."
-                    />
-                    <Button onClick={onAddNode} className="w-full">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Node
-                    </Button>
-                    {selectedNodeId && (
-                      <Button onClick={onAddSubnode} className="w-full">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Subnode
-                      </Button>
-                    )}
-                    {selectedNodes.size > 1 && (
-                      <Button onClick={onCollapseToNode} className="w-full">
-                        <GitMerge className="mr-2 h-4 w-4" />
-                        Collapse to Node
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Edge Operations */}
-            <AccordionItem value="edges">
-              <AccordionTrigger className="text-sm font-medium">
-                Edge Operations
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={isCreatingEdge}
-                      onCheckedChange={onToggleEdgeCreate}
-                    />
-                    <Label>Edge Creation Mode</Label>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Autocomplete */}
-            <AccordionItem value="autocomplete">
-              <AccordionTrigger className="text-sm font-medium">
-                AI Autocomplete
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={isAutocompleteModeActive}
-                      onCheckedChange={onToggleAutocomplete}
-                      disabled={isAutocompleteLoading}
-                    />
-                    <Label>
-                      {isAutocompleteLoading
-                        ? "Generating..."
-                        : autocompleteMode
-                        ? `Select ${autocompleteMode} node`
-                        : "Autocomplete Mode"}
-                    </Label>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Timeline */}
-            <AccordionItem value="timeline">
-              <AccordionTrigger className="text-sm font-medium">
-                Timeline
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={isTimelineActive}
-                      onCheckedChange={onTimelineToggle}
-                    />
-                    <Label>Show Timeline</Label>
-                  </div>
-                  {isTimelineActive && (
+      {isExpanded ? (
+        <>
+          <div className="flex-1 p-4 overflow-y-auto">
+            <Accordion type="multiple" className="w-full">
+              {/* Node Operations */}
+              <AccordionItem value="nodes">
+                <AccordionTrigger className="text-sm font-medium">
+                  Node Operations
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label>Start Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <CalendarIcon className="h-4 w-4 mr-2" />
-                              {format(timelineStartDate, 'PP')}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="end">
-                            <Calendar
-                              mode="single"
-                              selected={timelineStartDate}
-                              onSelect={(date) => date && onTimelineStartDateChange(date)}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Calendar Integration */}
-            <AccordionItem value="calendar">
-              <AccordionTrigger className="text-sm font-medium">
-                Calendar Integration
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4">
-                  {isCalendarAuthenticated ? (
-                    <>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={isCalendarSyncEnabled}
-                          onCheckedChange={onCalendarSyncToggle}
-                        />
-                        <Label>Auto-sync with Calendar</Label>
-                      </div>
-                      {isSyncing && <div>Syncing... ({dirtyNodesCount} items)</div>}
-                      <Button onClick={onCalendarSignOut} variant="outline" className="w-full">
-                        Sign Out
+                      <Input
+                        value={nodeTitle}
+                        onChange={(e) => onNodeTitleChange(e.target.value)}
+                        placeholder="Enter node title..."
+                      />
+                      <Button onClick={onAddNode} className="w-full">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Node
                       </Button>
-                    </>
-                  ) : (
-                    <Button 
-                      onClick={onCalendarLogin} 
-                      disabled={isCalendarInitializing}
-                      className="w-full"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      Connect Calendar
-                    </Button>
-                  )}
-                  {calendarError && (
-                    <div className="text-red-500 text-sm">{calendarError}</div>
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+                      {selectedNodeId && (
+                        <Button onClick={onAddSubnode} className="w-full">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Subnode
+                        </Button>
+                      )}
+                      {selectedNodes.size > 1 && (
+                        <Button onClick={onCollapseToNode} className="w-full">
+                          <GitMerge className="mr-2 h-4 w-4" />
+                          Collapse to Node
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            {/* File Operations */}
-            <AccordionItem value="file">
-              <AccordionTrigger className="text-sm font-medium">
-                File Operations
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-2">
-                  <Button onClick={onSaveToFile} className="w-full">
-                    <Save className="mr-2 h-4 w-4" />
-                    Save to File
-                  </Button>
-                  <Button onClick={onLoadFromFile} className="w-full">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Load from File
-                  </Button>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </div>
+              {/* Edge Operations */}
+              <AccordionItem value="edges">
+                <AccordionTrigger className="text-sm font-medium">
+                  Edge Operations
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={isCreatingEdge}
+                        onCheckedChange={onToggleEdgeCreate}
+                      />
+                      <Label>Edge Creation Mode</Label>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Autocomplete */}
+              <AccordionItem value="autocomplete">
+                <AccordionTrigger className="text-sm font-medium">
+                  AI Autocomplete
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={isAutocompleteModeActive}
+                        onCheckedChange={onToggleAutocomplete}
+                        disabled={isAutocompleteLoading}
+                      />
+                      <Label>
+                        {isAutocompleteLoading
+                          ? "Generating..."
+                          : autocompleteMode
+                          ? `Select ${autocompleteMode} node`
+                          : "Autocomplete Mode"}
+                      </Label>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Timeline */}
+              <AccordionItem value="timeline">
+                <AccordionTrigger className="text-sm font-medium">
+                  Timeline
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={isTimelineActive}
+                        onCheckedChange={onTimelineToggle}
+                      />
+                      <Label>Show Timeline</Label>
+                    </div>
+                    {isTimelineActive && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Start Date</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <CalendarIcon className="h-4 w-4 mr-2" />
+                                {format(timelineStartDate, 'PP')}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                              <Calendar
+                                mode="single"
+                                selected={timelineStartDate}
+                                onSelect={(date) => date && onTimelineStartDateChange(date)}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Calendar Integration */}
+              <AccordionItem value="calendar">
+                <AccordionTrigger className="text-sm font-medium">
+                  Calendar Integration
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4">
+                    {isCalendarAuthenticated ? (
+                      <>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            checked={isCalendarSyncEnabled}
+                            onCheckedChange={onCalendarSyncToggle}
+                          />
+                          <Label>Auto-sync with Calendar</Label>
+                        </div>
+                        {isSyncing && <div>Syncing... ({dirtyNodesCount} items)</div>}
+                        <Button onClick={onCalendarSignOut} variant="outline" className="w-full">
+                          Sign Out
+                        </Button>
+                      </>
+                    ) : (
+                      <Button 
+                        onClick={onCalendarLogin} 
+                        disabled={isCalendarInitializing}
+                        className="w-full"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        Connect Calendar
+                      </Button>
+                    )}
+                    {calendarError && (
+                      <div className="text-red-500 text-sm">{calendarError}</div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* File Operations */}
+              <AccordionItem value="file">
+                <AccordionTrigger className="text-sm font-medium">
+                  File Operations
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    <Button onClick={onSaveToFile} className="w-full">
+                      <Save className="mr-2 h-4 w-4" />
+                      Save to File
+                    </Button>
+                    <Button onClick={onLoadFromFile} className="w-full">
+                      <Upload className="mr-2 h-4 w-4" />
+                      Load from File
+                    </Button>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+          {/* Branding - Expanded State */}
+          <div className="border-t p-4 flex items-center justify-between">
+            <a 
+              href="https://www.danielmurnane.com/ResearchPlanner/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-lg font-semibold text-slate-700 hover:text-slate-900 transition-colors"
+            >
+              DoGraph
+            </a>
+            <a 
+              href="https://www.danielmurnane.com/ResearchPlanner/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="bg-black rounded-full p-1 text-white hover:bg-slate-800 transition-colors"
+            >
+              <Github className="h-5 w-5" />
+            </a>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Branding - Collapsed State */}
+          <div className="absolute bottom-0 left-0 w-12 h-48 flex items-center justify-center">
+            <div className="transform rotate-90 whitespace-nowrap flex items-center gap-3">
+              <a 
+                href="https://www.danielmurnane.com/ResearchPlanner/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-lg font-semibold text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                DoGraph
+              </a>
+              <a 
+                href="https://www.danielmurnane.com/ResearchPlanner/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="bg-black rounded-full p-1 text-white hover:bg-slate-800 transition-colors transform -rotate-90"
+              >
+                <Github className="h-5 w-5" />
+              </a>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

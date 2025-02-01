@@ -110,6 +110,10 @@
   - Maintained all existing functionality
 
 ## 2024-03-21
+- Added demo GIF to Getting Started documentation
+  - Created public assets directory
+  - Added visual demonstration of key features
+  - Enhanced user onboarding experience
 - Enhanced edge operations with dedicated hook functionality
   - Moved edge creation state to `useEdgeOperations` hook
   - Added edge creation flow management

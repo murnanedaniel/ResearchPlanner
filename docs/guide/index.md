@@ -2,6 +2,17 @@
 
 ResearchGraph is a powerful visual research planning tool that helps researchers, academics, and project managers plan, track, and visualize their research journey. It combines the flexibility of graph-based visualization with the structure of timeline management to create an intuitive research planning experience.
 
+## Quick Demo
+
+<video src="/assets/dograph_1.mp4" controls autoplay muted style="width: 100%; max-width: 800px; margin: 0 auto; display: block;"></video>
+
+Watch the demo above to see ResearchGraph in action:
+- Create and connect research nodes visually
+- Organize research components hierarchically
+- Use the timeline for temporal planning
+- Create nested subgraphs for complex projects
+- Leverage AI assistance for planning
+
 ## Key Features
 
 ### Node-Based Planning
