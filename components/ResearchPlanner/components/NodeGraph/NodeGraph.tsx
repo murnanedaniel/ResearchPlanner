@@ -13,8 +13,23 @@ import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from '../../utils/tim
 import type { TimelineConfig } from '../../utils/timeline';
 import { useSettings } from '../../context/SettingsContext';
 
-function ZoomControls() {
+function ZoomControls({ 
+  controlsRef 
+}: { 
+  controlsRef?: React.MutableRefObject<{
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetTransform: () => void;
+  } | null> 
+}) {
   const { zoomIn, zoomOut, resetTransform } = useControls();
+  
+  // Expose controls through ref
+  React.useEffect(() => {
+    if (controlsRef) {
+      controlsRef.current = { zoomIn, zoomOut, resetTransform };
+    }
+  }, [controlsRef, zoomIn, zoomOut, resetTransform]);
   
   return (
     <div className="absolute bottom-4 right-4 flex gap-2">
@@ -58,6 +73,11 @@ interface NodeGraphProps {
     isTimelineActive: boolean;
     timelineStartDate: Date;
     onGraphDoubleClick?: (x: number, y: number, event: React.MouseEvent) => void;
+    zoomControlsRef?: React.MutableRefObject<{
+        zoomIn: () => void;
+        zoomOut: () => void;
+        resetTransform: () => void;
+    } | null>;
 }
 
 interface SelectionBox {
@@ -533,7 +553,8 @@ export function NodeGraph({
     onNodeDrop,
     isTimelineActive,
     timelineStartDate,
-    onGraphDoubleClick
+    onGraphDoubleClick,
+    zoomControlsRef
 }: NodeGraphProps) {
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
     const [initialPosition, setInitialPosition] = useState({ x: 0, y: 0 });
@@ -630,7 +651,7 @@ export function NodeGraph({
                         onGraphDoubleClick={onGraphDoubleClick}
                     />
                 </TransformComponent>
-                <ZoomControls />
+                <ZoomControls controlsRef={zoomControlsRef} />
             </TransformWrapper>
         </div>
     );
