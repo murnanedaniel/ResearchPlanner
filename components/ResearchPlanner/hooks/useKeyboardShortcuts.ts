@@ -109,7 +109,6 @@ export function useKeyboardShortcuts({
         }
         break;
       case ' ':
-      case 'spacebar':
         if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
           e.preventDefault();
           handlers.onExpandCollapse?.();
@@ -160,7 +159,12 @@ export function useKeyboardShortcuts({
  * Get the display name for keyboard shortcuts based on platform
  */
 export function getModifierKeyDisplay(): string {
-  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  if (typeof navigator === 'undefined') return 'Ctrl';
+  
+  // Check userAgent as a fallback for platform detection
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isMac = userAgent.indexOf('mac') >= 0;
+  
   return isMac ? '⌘' : 'Ctrl';
 }
 

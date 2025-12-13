@@ -115,7 +115,7 @@ export function KeyboardShortcutsHelp() {
                 </kbd>
               </div>
               <div className="flex items-center justify-between py-1 px-2 rounded hover:bg-slate-50">
-                <span className="text-sm text-slate-600">Multi-select nodes</span>
+                <span className="text-sm text-slate-600">Add node to selection</span>
                 <kbd className="px-2 py-1 text-xs font-semibold text-slate-800 bg-slate-100 border border-slate-200 rounded">
                   {modifierKey} + Click
                 </kbd>
