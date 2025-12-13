@@ -27,10 +27,9 @@ describe('KeyboardShortcutsDialog', () => {
       <KeyboardShortcutsDialog open={true} onOpenChange={mockOnOpenChange} />
     );
 
-    expect(screen.getByText('Navigation')).toBeInTheDocument();
-    expect(screen.getByText('Node Operations')).toBeInTheDocument();
-    expect(screen.getByText('Edge Operations')).toBeInTheDocument();
-    expect(screen.getByText('View')).toBeInTheDocument();
+    expect(screen.getByText('General')).toBeInTheDocument();
+    expect(screen.getByText('Mouse & Navigation')).toBeInTheDocument();
+    expect(screen.getByText('View Controls')).toBeInTheDocument();
     expect(screen.getByText('File Operations')).toBeInTheDocument();
   });
 
@@ -41,6 +40,7 @@ describe('KeyboardShortcutsDialog', () => {
     );
 
     // Check for specific shortcuts
+    expect(screen.getByText('Show this help dialog')).toBeInTheDocument();
     expect(screen.getByText('Pan the canvas')).toBeInTheDocument();
     expect(screen.getByText('Delete selected node(s)')).toBeInTheDocument();
     expect(screen.getByText('Multi-select nodes')).toBeInTheDocument();

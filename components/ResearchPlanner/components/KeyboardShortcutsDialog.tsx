@@ -21,37 +21,32 @@ interface ShortcutCategory {
 
 const KEYBOARD_SHORTCUTS: ShortcutCategory[] = [
   {
-    title: 'Navigation',
+    title: 'General',
     shortcuts: [
-      { keys: ['Mouse Drag'], description: 'Pan the canvas' },
-      { keys: ['Scroll'], description: 'Zoom in/out' },
+      { keys: ['?'], description: 'Show this help dialog' },
+      { keys: ['Esc'], description: 'Collapse selected node / Clear selection / Cancel edge creation' },
+      { keys: ['Delete'], description: 'Delete selected node(s)' },
+      { keys: ['Enter'], description: 'Add node from toolbar' },
+    ],
+  },
+  {
+    title: 'Mouse & Navigation',
+    shortcuts: [
+      { keys: ['Drag Canvas'], description: 'Pan the canvas' },
+      { keys: ['Mouse Wheel'], description: 'Zoom in/out' },
+      { keys: ['Click Node'], description: 'Select node' },
+      { keys: ['Double Click'], description: 'Create node at cursor' },
+      { keys: ['Ctrl', 'Click'], description: 'Multi-select nodes' },
+      { keys: ['Ctrl', 'Drag'], description: 'Multi-select area' },
+      { keys: ['Alt', 'Click Node'], description: 'Start creating edge from node' },
+    ],
+  },
+  {
+    title: 'View Controls',
+    shortcuts: [
       { keys: ['Zoom In Button'], description: 'Zoom in' },
       { keys: ['Zoom Out Button'], description: 'Zoom out' },
       { keys: ['Reset Button'], description: 'Reset view' },
-    ],
-  },
-  {
-    title: 'Node Operations',
-    shortcuts: [
-      { keys: ['Double Click'], description: 'Create node at cursor' },
-      { keys: ['Enter'], description: 'Add node from toolbar' },
-      { keys: ['Delete'], description: 'Delete selected node(s)' },
-      { keys: ['Click'], description: 'Select node' },
-      { keys: ['Ctrl', 'Click'], description: 'Multi-select nodes' },
-      { keys: ['Ctrl', 'Drag'], description: 'Multi-select area' },
-      { keys: ['Esc'], description: 'Collapse selected node / Clear selection' },
-    ],
-  },
-  {
-    title: 'Edge Operations',
-    shortcuts: [
-      { keys: ['Alt', 'Click'], description: 'Start creating edge from node' },
-      { keys: ['Esc'], description: 'Cancel edge creation' },
-    ],
-  },
-  {
-    title: 'View',
-    shortcuts: [
       { keys: ['Timeline Toggle'], description: 'Enable/disable timeline view' },
       { keys: ['Expand Button'], description: 'Expand/collapse subgraph' },
     ],
