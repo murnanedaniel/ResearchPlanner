@@ -10,8 +10,6 @@ export function useNodeOperations() {
   const { getNewNodePosition } = useLayoutManager();
 
   const addNode = useCallback((title: string, selectedNodeId?: number) => {
-    if (!title.trim()) return;
-    
     const existingIds = nodes.map(n => n.id);
     initializeWithExistingIds(existingIds);
     
@@ -19,7 +17,7 @@ export function useNodeOperations() {
     const id = getNextId();
     const newNode: GraphNode = {
       id,
-      title: title.trim(),
+      title: title.trim() || 'Untitled',
       x: position.x,
       y: position.y,
       description: '',
@@ -46,13 +44,12 @@ export function useNodeOperations() {
   }, [setNodes]);
 
   const createNodeAtPosition = useCallback((title: string, x: number, y: number) => {
-    if (!title.trim()) return;
     const existingIds = nodes.map(n => n.id);
     initializeWithExistingIds(existingIds);
     const id = getNextId();
     const newNode: GraphNode = {
       id,
-      title: title.trim(),
+      title: title.trim() || 'Untitled',
       x,
       y,
       description: '',
