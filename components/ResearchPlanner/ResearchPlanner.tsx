@@ -18,6 +18,7 @@ import type { TimelineConfig } from './utils/timeline';
 import { useCalendarIntegration } from './hooks/useCalendarIntegration';
 import { addDays } from 'date-fns';
 import { SideToolbar } from './components/Toolbar/SideToolbar';
+import { KeyboardShortcutsDialog } from './components/KeyboardShortcutsDialog';
 
 export default function ResearchPlanner() {
   const { 
@@ -84,6 +85,7 @@ export default function ResearchPlanner() {
   const [selectedStartNodes, setSelectedStartNodes] = useState<number[]>([]);
   const [selectedGoalNodes, setSelectedGoalNodes] = useState<number[]>([]);
   const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
+  const [isShortcutsDialogOpen, setIsShortcutsDialogOpen] = useState(false);
 
   const { arrangeNodes, getNewNodePosition } = useLayoutManager();
   const { getNextId, initializeWithExistingIds } = useIdGenerator();
@@ -832,6 +834,29 @@ export default function ResearchPlanner() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isCreatingEdge, toggleEdgeCreation]);
 
+  // Keyboard shortcut to open help dialog
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if we're currently editing in any text field
+      const activeElement = document.activeElement;
+      const isEditingText = 
+        activeElement?.closest('.mdxeditor-root') !== null ||
+        activeElement?.closest('[contenteditable="true"]') !== null ||
+        activeElement?.closest('.prose') !== null ||
+        activeElement?.tagName === 'INPUT' ||
+        activeElement?.tagName === 'TEXTAREA';
+      
+      // Open shortcuts dialog with ? key (Shift + /)
+      if (e.key === '?' && !isEditingText) {
+        e.preventDefault();
+        setIsShortcutsDialogOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <SettingsProvider>
       <div className="flex h-full w-full overflow-hidden">
@@ -900,6 +925,17 @@ export default function ResearchPlanner() {
               timelineStartDate={timelineStartDate}
               onGraphDoubleClick={handleGraphDoubleClick}
             />
+            
+            {/* Help Button */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute bottom-4 left-4 rounded-full shadow-lg"
+              onClick={() => setIsShortcutsDialogOpen(true)}
+              title="Keyboard Shortcuts (?)"
+            >
+              <span className="text-lg font-semibold">?</span>
+            </Button>
           </div>
         </div>
 
@@ -910,6 +946,12 @@ export default function ResearchPlanner() {
           description={tempDescription}
           onDescriptionChange={handleDescriptionChange}
           onTitleChange={handleTitleChange}
+        />
+
+        {/* Keyboard Shortcuts Dialog */}
+        <KeyboardShortcutsDialog
+          open={isShortcutsDialogOpen}
+          onOpenChange={setIsShortcutsDialogOpen}
         />
       </div>
     </SettingsProvider>
