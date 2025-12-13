@@ -19,6 +19,8 @@ ResearchGraph is an interactive research planning tool that helps researchers vi
 - Bulk operations (delete, mark obsolete)
 - Nested subgraph support with expand/collapse
 - Smart node positioning and spacing
+- **Comprehensive keyboard shortcuts for all operations**
+- Built-in keyboard shortcuts cheat sheet
 
 ### 🤖 AI-Powered Planning
 - Auto-generate intermediate research steps
@@ -117,6 +119,44 @@ Visit http://localhost:3000 to start using ResearchGraph!
 2. Use Delete key to remove selected nodes
 3. Selection state persists for bulk operations
 4. Drag any selected node to move the entire selection
+
+### ⌨️ Keyboard Shortcuts
+
+ResearchGraph provides comprehensive keyboard shortcuts for efficient workflow:
+
+**Node Operations**
+- `N` - Create new node
+- `O` - Mark selected node as obsolete
+- `Delete` - Delete selected nodes
+- `Space` - Expand/collapse selected node
+
+**Edge Operations**
+- `E` - Toggle edge creation mode
+- `Alt + Click` - Create edge from node
+
+**Selection**
+- `Ctrl+A` (or `Cmd+A`) - Select all nodes
+- `Escape` - Clear selection and collapse nodes
+- `Ctrl + Click` (or `Cmd + Click`) - Multi-select nodes
+- `Ctrl + Drag` (or `Cmd + Drag`) - Select multiple nodes
+
+**View Controls**
+- `+` - Zoom in
+- `-` - Zoom out
+- `0` - Reset zoom
+
+**Timeline**
+- `T` - Toggle timeline view
+
+**File Operations**
+- `Ctrl+S` (or `Cmd+S`) - Save graph
+- `Ctrl+O` (or `Cmd+O`) - Load graph
+- `Ctrl+E` (or `Cmd+E`) - Export graph
+
+**Other**
+- `Double Click` - Create node at position
+
+Click the keyboard icon (?) in the top-right corner to view all shortcuts.
 
 ## 🛠 Configuration
 
