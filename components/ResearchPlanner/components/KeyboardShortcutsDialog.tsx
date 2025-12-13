@@ -92,18 +92,18 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
                 {category.title}
               </h3>
               <div className="space-y-2">
-                {category.shortcuts.map((shortcut, index) => (
+                {category.shortcuts.map((shortcut) => (
                   <div
-                    key={index}
+                    key={`${category.title}-${shortcut.description}`}
                     className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
                   >
                     <span className="text-sm text-gray-700">
                       {shortcut.description}
                     </span>
                     <div className="flex items-center gap-1">
-                      {shortcut.keys.map((key, keyIndex) => (
-                        <React.Fragment key={keyIndex}>
-                          {keyIndex > 0 && (
+                      {shortcut.keys.map((key) => (
+                        <React.Fragment key={`${category.title}-${shortcut.description}-${key}`}>
+                          {shortcut.keys.indexOf(key) > 0 && (
                             <span className="text-gray-400 mx-1">+</span>
                           )}
                           <KeyboardKey shortcut={key} />
