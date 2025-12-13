@@ -41,7 +41,6 @@ export default function ResearchPlanner() {
     toggleEdgePlanned
   } = useEdgeOperations();
   
-  const [newItemTitle, setNewItemTitle] = useState('');
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<Set<number>>(new Set());
   const [selectedEdge, setSelectedEdge] = useState<number | null>(null);
@@ -116,8 +115,7 @@ export default function ResearchPlanner() {
   }, [nodes, edges, selectedEdge]);
 
   const handleAddNode = () => {
-    addNode(newItemTitle, selectedNode || undefined);
-    setNewItemTitle('');
+    addNode('Untitled', selectedNode || undefined);
   };
 
   const handleNodeDelete = useCallback((id: number) => {
@@ -544,7 +542,7 @@ export default function ResearchPlanner() {
     // Create the child node
     const newNode: GraphNode = {
         id,
-        title: newItemTitle.trim() || 'Untitled',
+        title: 'Untitled',
         description: '',
         x: position.x,
         y: position.y,
@@ -579,7 +577,6 @@ export default function ResearchPlanner() {
 
     // Expand the parent node
     setExpandedNodes(prev => new Set(Array.from(prev).concat([selectedNode])));
-    setNewItemTitle('');
   };
 
   // Helper function to get all descendant node IDs recursively
@@ -665,7 +662,7 @@ export default function ResearchPlanner() {
     // Create the parent node with a guaranteed unique ID
     const parentNode: GraphNode = {
       id: getNextId(),
-      title: newItemTitle.trim() || 'Untitled',
+      title: 'Untitled',
       description: '',
       x: avgX,
       y: avgY,
@@ -699,7 +696,6 @@ export default function ResearchPlanner() {
     setExpandedNodes(prev => new Set([...Array.from(prev), parentNode.id]));
     setSelectedNodes(new Set([parentNode.id]));
     setSelectedNode(parentNode.id);
-    setNewItemTitle('');
   };
 
   const handleNodeDragOver = (targetNode: GraphNode) => {
