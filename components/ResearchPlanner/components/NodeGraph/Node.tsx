@@ -101,20 +101,6 @@ export function Node({
             y: e.clientY - rect.top
         });
         
-        console.log('=== Drag Start ===');
-        console.log('Node:', {
-            id: node.id,
-            center: { x: node.x, y: node.y },
-            leftEdge: node.x - finalRadius,
-            rightEdge: node.x + finalRadius,
-            scale: nodeScale,
-            finalRadius,
-        });
-        console.log('Drag offset:', {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-        });
-        
         e.dataTransfer.setData('text/plain', node.id.toString());
         setIsDragging(true);
     };
@@ -128,24 +114,6 @@ export function Node({
         const { scale, positionX, positionY } = transformContext.transformState;
         const x = ((e.clientX - rect.left - positionX) / scale);
         const y = ((e.clientY - rect.top - positionY) / scale);
-
-        console.log('=== Drag End ===');
-        console.log('Transform state:', { scale, positionX, positionY });
-        console.log('Raw position:', { 
-            clientX: e.clientX, 
-            clientY: e.clientY,
-            rectLeft: rect.left,
-            rectTop: rect.top
-        });
-        console.log('Calculated position:', { x, y });
-        console.log('Node details:', {
-            id: node.id,
-            currentCenter: { x: node.x, y: node.y },
-            proposedCenter: { x, y },
-            scale: nodeScale,
-            finalRadius,
-            dragOffset
-        });
 
         onDragEnd(node.id, x, y, isMultiSelected);
     };
@@ -176,19 +144,11 @@ export function Node({
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        
+
         const sourceId = parseInt(e.dataTransfer.getData('text/plain'), 10);
-        console.log('Drop event - Source:', sourceId, 'Target:', node.id);
-        
-        if (!isNaN(sourceId) && sourceId !== node.id) {
-            if (e.ctrlKey) {
-                console.log('Ctrl-drop - creating parent-child relationship');
-                onNodeDrop?.(sourceId, node.id);
-            } else {
-                console.log('Normal drop - repositioning will be handled by dragEnd');
-            }
-        } else {
-            console.log('Invalid drop - same node or invalid ID');
+
+        if (!isNaN(sourceId) && sourceId !== node.id && e.ctrlKey) {
+            onNodeDrop?.(sourceId, node.id);
         }
     };
 

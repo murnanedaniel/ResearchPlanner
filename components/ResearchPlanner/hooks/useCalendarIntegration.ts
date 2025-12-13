@@ -7,10 +7,6 @@ import { GraphNode } from '../types';
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!;
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY!;
 
-if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY) {
-  console.error('Google Calendar credentials not found in environment variables');
-}
-
 interface UseCalendarIntegrationProps {
   nodes: GraphNode[];
   setNodes: (nodes: GraphNode[] | ((prev: GraphNode[]) => GraphNode[])) => void;
@@ -35,7 +31,6 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
   useEffect(() => {
     // Skip if we're still initializing
     if (calendar.isInitializing) {
-      console.log('Skipping state load - still initializing');
       return;
     }
 
@@ -44,14 +39,11 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
       return;
     }
 
-    console.log('\n=== Loading Calendar State ===');
     const savedState = loadCalendarState();
-    console.log('Loaded saved state:', savedState);
 
     // Only restore sync state if initialization is complete
     if (calendar.isInitialized) {
       if (savedState?.isCalendarAuthenticated && calendar.isAuthenticated) {
-        console.log('Restoring sync state:', savedState.isCalendarSyncEnabled);
         // Batch the state updates to prevent race conditions
         Promise.resolve().then(() => {
           setIsCalendarSyncEnabled(savedState.isCalendarSyncEnabled);
@@ -82,33 +74,24 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
   // Unified debounced calendar sync effect
   useEffect(() => {
     if (!isCalendarSyncEnabled || !calendar.isAuthenticated) {
-      console.log('\n=== Calendar Sync Effect ===');
-      console.log('Sync enabled:', isCalendarSyncEnabled);
-      console.log('Calendar authenticated:', calendar.isAuthenticated);
-      console.log('Sync skipped: disabled or not authenticated');
       return;
     }
 
     const timer = setTimeout(async () => {
       setIsSyncing(true);
-      console.log('\n=== Debounced Calendar Sync ===');
 
       try {
         // First handle nodes that need new events created
-        const nodesToCreate = nodes.filter(node => 
+        const nodesToCreate = nodes.filter(node =>
           node.day && !node.calendarEventId
         );
-        
-        console.log('Nodes needing new events:', nodesToCreate.length);
-        
+
         // Create new events
         for (const node of nodesToCreate) {
-          console.log('\nCreating event for node:', node.title);
           try {
             const eventId = await calendar.syncNode(node);
-            console.log('Created event with ID:', eventId);
             // Update node with calendar event ID
-            setNodes((prev: GraphNode[]) => prev.map((n: GraphNode) => 
+            setNodes((prev: GraphNode[]) => prev.map((n: GraphNode) =>
               n.id === node.id ? { ...n, calendarEventId: eventId } : n
             ));
           } catch (err) {
@@ -117,18 +100,14 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
         }
 
         // Then handle nodes that need updates
-        const nodesToUpdate = nodes.filter(node => 
+        const nodesToUpdate = nodes.filter(node =>
           node.day && node.calendarEventId && dirtyNodes.has(node.id)
         );
 
-        console.log('Nodes needing updates:', nodesToUpdate.length);
-
         // Update existing events
         for (const node of nodesToUpdate) {
-          console.log('\nUpdating node:', node.title);
           try {
             await calendar.updateNode(node, node.calendarEventId!);
-            console.log('Updated event successfully');
             // Clear from dirty set on success
             setDirtyNodes(prev => {
               const next = new Set(prev);
@@ -172,4 +151,4 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
     error: error,
     isInitializing: calendar.isInitializing
   };
-} 
+}

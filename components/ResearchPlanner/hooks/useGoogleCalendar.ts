@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { GraphNode } from '../types';
+import { GraphNode, CalendarEvent } from '../types';
 import {
   initGoogleAuth,
   handleAuthClick,
   handleSignoutClick,
-  isAuthorized,
   createCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
@@ -33,7 +32,7 @@ interface UseGoogleCalendarReturn {
   syncNode: (node: GraphNode) => Promise<string>;
   updateNode: (node: GraphNode, eventId: string) => Promise<void>;
   deleteNode: (eventId: string) => Promise<void>;
-  listEvents: () => Promise<any[]>;
+  listEvents: () => Promise<CalendarEvent[]>;
 }
 
 export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig): UseGoogleCalendarReturn {
@@ -47,12 +46,10 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
 
   const initialize = useCallback(async (): Promise<AuthResult> => {
     if (isInitializing && initializePromiseRef.current) {
-      console.log('Already initializing, waiting...');
       return initializePromiseRef.current;
     }
 
     if (isInitialized && !hasError) {
-      console.log('Already initialized successfully');
       return {
         gapiInited: true,
         gisInited: true,
@@ -60,7 +57,6 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
       };
     }
 
-    console.log('Starting initialization...');
     setIsInitializing(true);
 
     try {
@@ -71,11 +67,10 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
       setIsInitialized(true);
       setError(null);
       return result;
-    } catch (error) {
-      console.error('Initialization failed:', error);
-      setError(error as Error);
+    } catch (err) {
+      setError(err as Error);
       setHasError(true);
-      throw error;
+      throw err;
     } finally {
       setIsInitializing(false);
       initializePromiseRef.current = null;
@@ -85,35 +80,27 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
   // Auto-initialize on mount, but only once
   useEffect(() => {
     if (!hasAutoInitializedRef.current && !isInitializing && !isAuthenticated && !error) {
-      console.log('Auto-initializing calendar...');
       hasAutoInitializedRef.current = true;
-      initialize().catch(err => {
-        console.error('Auto-initialization failed:', err);
+      initialize().catch(() => {
+        // Silent fail for auto-initialization
       });
     }
   }, []);
 
   const login = useCallback(async () => {
-    console.log('\n=== Starting Login Process ===');
     setError(null);
 
     try {
       // Always initialize first
-      console.log('Ensuring initialization is complete...');
       if (isInitializing && initializePromiseRef.current) {
-        console.log('Waiting for existing initialization to complete...');
         await initializePromiseRef.current;
       } else if (!isAuthenticated) {
-        console.log('Starting new initialization...');
         await initialize();
       }
 
-      console.log('Initialization complete, proceeding with login...');
       await handleAuthClick();
-      console.log('Login successful');
       setIsAuthenticated(true);
     } catch (err) {
-      console.error('Login process failed:', err);
       setError(err instanceof Error ? err : new Error('Login failed'));
       setIsAuthenticated(false);
       throw err;
@@ -121,12 +108,10 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
   }, [initialize, isInitializing, isAuthenticated]);
 
   const logout = useCallback(async () => {
-    console.log('Logging out...');
     try {
       await handleSignoutClick();
       setIsAuthenticated(false);
     } catch (err) {
-      console.error('Logout failed:', err);
       setError(err instanceof Error ? err : new Error('Logout failed'));
       throw err;
     }
@@ -143,7 +128,6 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
       return eventId;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown sync error');
-      console.error('Error syncing node to calendar:', error);
       setError(error);
       throw error;
     }
@@ -159,7 +143,6 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
       await updateCalendarEvent(node, eventId);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown update error');
-      console.error('Error updating calendar event:', error);
       setError(error);
       throw error;
     }
@@ -175,7 +158,6 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
       await deleteCalendarEvent(eventId);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown delete error');
-      console.error('Error deleting calendar event:', error);
       setError(error);
       throw error;
     }
@@ -192,7 +174,6 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
       return events;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown list error');
-      console.error('Error listing calendar events:', error);
       setError(error);
       throw error;
     }
@@ -211,4 +192,4 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
     deleteNode,
     listEvents
   };
-} 
+}

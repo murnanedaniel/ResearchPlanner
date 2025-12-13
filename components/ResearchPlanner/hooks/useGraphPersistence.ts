@@ -5,28 +5,24 @@ export function useGraphPersistence() {
   const saveGraph = useCallback((data: GraphData) => {
     try {
       const serialized = JSON.stringify(data);
-      console.log('Saving graph:', data);
       localStorage.setItem('research-graph', serialized);
-    } catch (error) {
-      console.error('Failed to save graph:', error);
+    } catch {
+      // Silent fail for save errors
     }
   }, []);
 
   const loadGraph = useCallback((): GraphData | null => {
     try {
       const data = localStorage.getItem('research-graph');
-      console.log('Raw loaded data:', data);
       if (!data) {
-        console.log('No saved graph found');
         return null;
       }
-      
+
       // Parse the data
       const parsed = JSON.parse(data);
-      
+
       // Handle old format (array of nodes)
       if (Array.isArray(parsed)) {
-        console.log('Converting old format to new format');
         return {
           nodes: parsed as GraphNode[],
           edges: [],
@@ -35,11 +31,10 @@ export function useGraphPersistence() {
           expandedNodes: []
         };
       }
-      
+
       // Handle new format
       return parsed as GraphData;
-    } catch (error) {
-      console.error('Failed to load graph:', error);
+    } catch {
       return null;
     }
   }, []);
@@ -61,7 +56,7 @@ export function useGraphPersistence() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.json';
-      
+
       input.onchange = (e) => {
         const file = (e.target as HTMLInputElement).files?.[0];
         if (!file) {
@@ -74,7 +69,7 @@ export function useGraphPersistence() {
           try {
             const content = e.target?.result as string;
             const parsed = JSON.parse(content);
-            
+
             // Handle old format (array of nodes)
             if (Array.isArray(parsed)) {
               resolve({
@@ -86,11 +81,10 @@ export function useGraphPersistence() {
               });
               return;
             }
-            
+
             // Handle new format
             resolve(parsed as GraphData);
-          } catch (error) {
-            console.error('Failed to parse file:', error);
+          } catch {
             resolve(null);
           }
         };
@@ -102,4 +96,4 @@ export function useGraphPersistence() {
   }, []);
 
   return { saveGraph, loadGraph, saveToFile, loadFromFile };
-} 
+}

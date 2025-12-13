@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
 // Initialize OpenAI client only if API key is available
@@ -12,6 +11,11 @@ const getOpenAIClient = () => {
     dangerouslyAllowBrowser: true
   });
 };
+
+interface AutocompleteStep {
+  title: string;
+  markdown: string;
+}
 
 export async function POST(request: Request) {
   try {
@@ -30,13 +34,13 @@ export async function POST(request: Request) {
     const prompt = `Given the following research plan:
     Start nodes: ${JSON.stringify(startNodes)}
     Goal nodes: ${JSON.stringify(goalNodes)}
-    
+
     Current graph structure:
     {
       "nodes": ${JSON.stringify(nodes)},
       "edges": ${JSON.stringify(edges)}
     }
-    
+
     Generate a sequence of up to four concrete, actionable steps that bridge the gap between the start and goal nodes.
     Each step should be specific and clearly contribute to reaching the goal.
     Consider the existing graph structure and ensure the new steps integrate well with any existing research paths.
@@ -80,23 +84,21 @@ Consider the existing graph structure and ensure the new steps integrate well wi
     if (!content) {
       throw new Error('No content in OpenAI response');
     }
-    console.log(content);
 
-    let parsedResponse;
+    let parsedResponse: AutocompleteStep[];
     try {
       const parsed = JSON.parse(content);
       // The response might be wrapped in a steps array or be the array itself
       parsedResponse = parsed.steps || parsed;
-      
-      if (!Array.isArray(parsedResponse) || !parsedResponse.every(step => 
-        typeof step === 'object' && 
-        typeof step.title === 'string' && 
+
+      if (!Array.isArray(parsedResponse) || !parsedResponse.every(step =>
+        typeof step === 'object' &&
+        typeof step.title === 'string' &&
         typeof step.markdown === 'string'
       )) {
         throw new Error('Invalid response format from OpenAI');
       }
-    } catch (parseError) {
-      console.error('Parse error:', parseError, 'Content:', content);
+    } catch {
       throw new Error('Failed to parse OpenAI response');
     }
 
@@ -104,14 +106,14 @@ Consider the existing graph structure and ensure the new steps integrate well wi
       JSON.stringify(parsedResponse),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
-    console.error('Error in autocomplete:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Failed to generate steps',
-        details: error.message || 'Unknown error'
+        details: errorMessage
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
-} 
+}

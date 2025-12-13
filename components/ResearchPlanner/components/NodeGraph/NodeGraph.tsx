@@ -223,55 +223,26 @@ function GraphContent({
     };
 
     const handleNodeDragEnd = (id: number, x: number, y: number) => {
-        console.log('\n=== NodeGraph Drag End ===');
-        console.log('Initial position:', { id, x, y });
-        
         // Find the dragged node to calculate the delta
         const draggedNode = nodes.find(n => n.id === id);
         if (!draggedNode) {
-            console.log('Could not find dragged node:', id);
             return;
         }
 
-        // x and y are now center coordinates
-        console.log('Dragged node current position:', {
-            id: draggedNode.id,
-            x: draggedNode.x,
-            y: draggedNode.y
-        });
-        
         const deltaX = x - draggedNode.x;
         const deltaY = y - draggedNode.y;
-        console.log('Movement delta:', { deltaX, deltaY });
-
-        // If timeline is active, log grid details
-        if (isTimelineActive && transformContext?.transformState) {
-            const timeScale = getTimelineConfig(currentScale);
-            const pixelsPerUnit = getPixelsPerUnit(timeScale);
-            console.log('Timeline grid:', {
-                timeScale,
-                pixelsPerUnit,
-                viewScale: currentScale,
-                proposedX: x,
-                nearestGridLine: Math.round(x / pixelsPerUnit) * pixelsPerUnit
-            });
-        }
 
         // If we have multiple nodes selected, move them all
         if (selectedNodes.has(id) && selectedNodes.size > 1) {
-            console.log('Moving multiple nodes');
             // Create an array of updates
             const updates = Array.from(selectedNodes).map(selectedId => {
                 const node = nodes.find(n => n.id === selectedId);
                 if (!node) {
-                    console.log('Could not find selected node:', selectedId);
                     return null;
                 }
-                
-                console.log('Moving node:', node);
-                let newX = node.x + deltaX;  // node.x is center position
+
+                let newX = node.x + deltaX;
                 let newY = node.y + deltaY;
-                console.log('New position:', { newX, newY });
 
                 // Snap to grid if timeline is active
                 if (isTimelineActive && transformContext?.transformState) {
@@ -282,8 +253,7 @@ function GraphContent({
                         pixelsPerUnit,
                         startDate: timelineStartDate
                     };
-                    newX = snapToGrid(newX, config);  // Snap center position to grid
-                    console.log('Snapped X:', newX);
+                    newX = snapToGrid(newX, config);
                 }
 
                 return { id: selectedId, x: newX, y: newY };
@@ -299,7 +269,6 @@ function GraphContent({
                 });
             }
         } else {
-            console.log('Moving single node');
             // Single node movement
             if (isTimelineActive && transformContext?.transformState) {
                 const timeScale = getTimelineConfig(currentScale);
@@ -309,8 +278,7 @@ function GraphContent({
                     pixelsPerUnit,
                     startDate: timelineStartDate
                 };
-                x = snapToGrid(x, config);  // Snap center position to grid
-                console.log('Snapped single node X:', x);
+                x = snapToGrid(x, config);
             }
             onNodeDragEnd(id, x, y);
         }

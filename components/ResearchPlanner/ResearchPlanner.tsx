@@ -85,7 +85,7 @@ export default function ResearchPlanner() {
   const [selectedGoalNodes, setSelectedGoalNodes] = useState<number[]>([]);
   const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
 
-  const { arrangeNodes, getNewNodePosition } = useLayoutManager();
+  const { getNewNodePosition } = useLayoutManager();
   const { getNextId, initializeWithExistingIds } = useIdGenerator();
   const { getNextColor } = useColorGenerator();
 
@@ -522,8 +522,8 @@ export default function ResearchPlanner() {
 
       setNodes([...nodes, ...newNodes]);
       setEdges([...edges, ...newEdges]);
-    } catch (error) {
-      console.error('Error generating autocomplete:', error);
+    } catch {
+      // Silent fail for autocomplete errors
     } finally {
       setIsAutocompleteLoading(false);
       setAutocompleteModeActive(false);
@@ -648,17 +648,13 @@ export default function ResearchPlanner() {
   const handleCollapseToNode = () => {
     if (selectedNodes.size <= 1 || !newItemTitle.trim()) return;
 
-    console.log('Collapsing nodes to parent. Selected nodes:', Array.from(selectedNodes));
-    console.log('Current nodes before collapse:', nodes);
-
     // Initialize ID generator with existing IDs to ensure uniqueness
     const existingIds = nodes.map(n => n.id);
     initializeWithExistingIds(existingIds);
 
     const selectedNodesList = Array.from(selectedNodes);
     const selectedNodeObjects = nodes.filter(n => selectedNodes.has(n.id));
-    console.log('Selected node objects:', selectedNodeObjects);
-    
+
     // Calculate average position of selected nodes
     const avgX = selectedNodeObjects.reduce((sum, n) => sum + n.x, 0) / selectedNodeObjects.length;
     const avgY = selectedNodeObjects.reduce((sum, n) => sum + n.y, 0) / selectedNodeObjects.length;
@@ -673,29 +669,24 @@ export default function ResearchPlanner() {
       isObsolete: false,
       childNodes: selectedNodesList,
       isExpanded: true,
-      hullColor: getNextColor()  // Set the hull color when creating the parent node
+      hullColor: getNextColor()
     };
 
     // Calculate hull points for the parent
     const hullPoints = calculateNodeHull(parentNode, selectedNodeObjects);
     parentNode.hullPoints = hullPoints;
 
-    console.log('Created parent node:', parentNode);
-
     // Update child nodes with parentId
     const updatedNodes = nodes.map(node => {
       if (selectedNodes.has(node.id)) {
-        console.log(`Setting parentId ${parentNode.id} for child node:`, node);
         return { ...node, parentId: parentNode.id };
       }
       return node;
     });
-    console.log('Updated nodes with new parent IDs:', updatedNodes);
 
     // Add the new parent node and update state
     const finalNodes = [...updatedNodes, parentNode];
-    console.log('Final nodes after collapse:', finalNodes);
-    
+
     setNodes(finalNodes);
     setExpandedNodes(prev => new Set([...Array.from(prev), parentNode.id]));
     setSelectedNodes(new Set([parentNode.id]));
