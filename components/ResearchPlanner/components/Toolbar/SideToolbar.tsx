@@ -141,6 +141,15 @@ export function SideToolbar({
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-4">
+                    {/* Selection Counter */}
+                    {selectedNodes.size > 0 && (
+                      <div className="text-xs text-slate-500 flex items-center gap-2">
+                        <div className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-medium">
+                          {selectedNodes.size} {selectedNodes.size === 1 ? 'node' : 'nodes'} selected
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="space-y-2">
                       <Button onClick={onAddNode} className="w-full">
                         <Plus className="mr-2 h-4 w-4" />
@@ -155,7 +164,7 @@ export function SideToolbar({
                       {selectedNodes.size > 1 && (
                         <Button onClick={onCollapseToNode} className="w-full">
                           <GitMerge className="mr-2 h-4 w-4" />
-                          Collapse to Node
+                          Collapse to Node ({selectedNodes.size} nodes)
                         </Button>
                       )}
                     </div>

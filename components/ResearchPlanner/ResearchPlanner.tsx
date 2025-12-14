@@ -20,6 +20,7 @@ import { addDays } from 'date-fns';
 import { SideToolbar } from './components/Toolbar/SideToolbar';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp/KeyboardShortcutsHelp';
+import { HelpOverlay } from './components/shared/HelpOverlay';
 
 export default function ResearchPlanner() {
   const { 
@@ -878,7 +879,8 @@ export default function ResearchPlanner() {
 
   return (
     <SettingsProvider>
-      <div className="flex h-full w-full overflow-hidden">
+      <div className="flex h-full w-full overflow-hidden relative">
+        <HelpOverlay />
         {/* Side Toolbar (Left) */}
         <SideToolbar
           onAddNode={handleAddNode}

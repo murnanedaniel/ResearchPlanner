@@ -88,37 +88,49 @@ Visit http://localhost:3000 to start using ResearchGraph!
 
 ## 🎮 Usage
 
-### Creating Nodes
-1. Enter a title in the toolbar
-2. Click "Add Node" or press Enter
-3. Double-click nodes to edit details
-4. Drag nodes to reposition
+### Quick Start Guide
+
+ResearchGraph follows intuitive web-standard interactions. Press **?** anytime to see all keyboard shortcuts!
+
+### Creating & Editing Nodes
+- **Double-click canvas** → Create new node at cursor position
+- **Double-click node** → Edit node details in side panel
+- **Right-click node** → Quick actions menu (Edit, Create Edge, Mark Obsolete, Delete)
+- **Single click node** → Select for editing
+- **Drag node** → Move to new position
+- **Del key** → Delete selected node(s)
+
+### Working with Multiple Nodes
+- **Ctrl + Click** → Add/remove nodes from selection
+- **Ctrl + Drag canvas** → Box select multiple nodes
+- **Drag selected node** → Move all selected nodes together
+- **ESC key** → Clear selection or collapse expanded node
 
 ### Creating Connections
-1. Click "Create Edge" in the toolbar
-2. Select source node
-3. Select target node
-4. Edge is created with directional arrow
+- **Alt + Click node** → Start edge creation mode
+- **Click target node** → Complete the edge
+- **Right-click node** → "Create Edge" from context menu
+- **Edge toolbar toggle** → Enable/disable edge creation mode
+- **ESC key** → Cancel edge creation
 
 ### Using AI Assistance
-1. Click "Autocomplete" in the toolbar
-2. Select a start node (highlighted in emerald)
-3. Select a goal node (highlighted in blue)
-4. AI will generate intermediate steps with proper spacing
-5. Edit or refine generated steps as needed
+1. Toggle "AI Autocomplete" in the left toolbar
+2. Click a start node (highlighted in emerald)
+3. Click a goal node (highlighted in blue)
+4. AI generates intermediate research steps
+5. Edit generated steps as needed
 
 ### Managing Subgraphs
-1. Select multiple nodes with Ctrl+drag
-2. Enter a title for the parent node
-3. Click "Collapse to Node" to create a subgraph
-4. Use ESC key to quickly collapse expanded nodes
-5. Click the expand button to view subnodes
+1. Select multiple nodes (**Ctrl + Drag**)
+2. Enter a parent node title in toolbar
+3. Click "Collapse to Node" to group them
+4. Click expand button or **ESC** to collapse
+5. **Ctrl + Drag onto node** to nest as child
 
-### Multi-Select Operations
-1. Hold Ctrl and drag to select multiple nodes
-2. Use Delete key to remove selected nodes
-3. Selection state persists for bulk operations
-4. Drag any selected node to move the entire selection
+### Navigation
+- **Drag canvas** → Pan the view
+- **Mouse wheel** → Zoom in/out
+- **Zoom controls** → Bottom right corner buttons
 
 ### ⌨️ Keyboard Shortcuts
 
