@@ -18,13 +18,31 @@ function ZoomControls() {
   
   return (
     <div className="absolute bottom-4 right-4 flex gap-2">
-      <Button variant="outline" size="icon" onClick={() => zoomIn()}>
+      <Button 
+        variant="outline" 
+        size="icon" 
+        onClick={() => zoomIn()}
+        title="Zoom in"
+        aria-label="Zoom in"
+      >
         <ZoomIn className="h-4 w-4" />
       </Button>
-      <Button variant="outline" size="icon" onClick={() => zoomOut()}>
+      <Button 
+        variant="outline" 
+        size="icon" 
+        onClick={() => zoomOut()}
+        title="Zoom out"
+        aria-label="Zoom out"
+      >
         <ZoomOut className="h-4 w-4" />
       </Button>
-      <Button variant="outline" size="icon" onClick={() => resetTransform()}>
+      <Button 
+        variant="outline" 
+        size="icon" 
+        onClick={() => resetTransform()}
+        title="Reset view"
+        aria-label="Reset view"
+      >
         <Maximize className="h-4 w-4" />
       </Button>
     </div>

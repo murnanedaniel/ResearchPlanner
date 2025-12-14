@@ -18,6 +18,7 @@ import type { TimelineConfig } from './utils/timeline';
 import { useCalendarIntegration } from './hooks/useCalendarIntegration';
 import { addDays } from 'date-fns';
 import { SideToolbar } from './components/Toolbar/SideToolbar';
+import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts';
 
 export default function ResearchPlanner() {
   const { 
@@ -825,7 +826,8 @@ export default function ResearchPlanner() {
 
   return (
     <SettingsProvider>
-      <div className="flex h-full w-full overflow-hidden">
+      <div className="flex h-full w-full overflow-hidden relative">
+        <KeyboardShortcuts />
         {/* Side Toolbar (Left) */}
         <SideToolbar
           nodeTitle={newItemTitle}
