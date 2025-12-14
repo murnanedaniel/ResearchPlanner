@@ -19,6 +19,7 @@ import { useCalendarIntegration } from './hooks/useCalendarIntegration';
 import { addDays } from 'date-fns';
 import { SideToolbar } from './components/Toolbar/SideToolbar';
 import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts';
+import { HelpOverlay } from './components/shared/HelpOverlay';
 
 export default function ResearchPlanner() {
   const { 
@@ -827,6 +828,7 @@ export default function ResearchPlanner() {
   return (
     <SettingsProvider>
       <div className="flex h-full w-full overflow-hidden relative">
+        <HelpOverlay />
         <KeyboardShortcuts />
         {/* Side Toolbar (Left) */}
         <SideToolbar

@@ -146,26 +146,40 @@ export function SideToolbar({
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-4">
+                    {/* Selection Counter */}
+                    {selectedNodes.size > 0 && (
+                      <div className="text-xs text-slate-500 flex items-center gap-2">
+                        <div className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-medium">
+                          {selectedNodes.size} {selectedNodes.size === 1 ? 'node' : 'nodes'} selected
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="space-y-2">
                       <Input
                         value={nodeTitle}
                         onChange={(e) => onNodeTitleChange(e.target.value)}
-                        placeholder="Enter node title..."
+                        placeholder={selectedNodeId ? "Title for new child node..." : "Title for new node..."}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && nodeTitle.trim()) {
+                            onAddNode();
+                          }
+                        }}
                       />
-                      <Button onClick={onAddNode} className="w-full">
+                      <Button onClick={onAddNode} className="w-full" disabled={!nodeTitle.trim()}>
                         <Plus className="mr-2 h-4 w-4" />
                         Add Node
                       </Button>
                       {selectedNodeId && (
-                        <Button onClick={onAddSubnode} className="w-full">
+                        <Button onClick={onAddSubnode} className="w-full" disabled={!nodeTitle.trim()}>
                           <Plus className="mr-2 h-4 w-4" />
                           Add Subnode
                         </Button>
                       )}
                       {selectedNodes.size > 1 && (
-                        <Button onClick={onCollapseToNode} className="w-full">
+                        <Button onClick={onCollapseToNode} className="w-full" disabled={!nodeTitle.trim()}>
                           <GitMerge className="mr-2 h-4 w-4" />
-                          Collapse to Node
+                          Collapse to Node ({selectedNodes.size} nodes)
                         </Button>
                       )}
                     </div>

@@ -313,7 +313,7 @@ function GraphContent({
 
     return (
         <div 
-            className="relative"
+            className={`relative ${isCreatingEdge ? 'cursor-crosshair' : ''}`}
             style={{ width: `${GRAPH_CONSTANTS.CANVAS_SIZE}px`, height: `${GRAPH_CONSTANTS.CANVAS_SIZE}px` }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -321,6 +321,15 @@ function GraphContent({
             onMouseLeave={handleMouseUp}
             onDoubleClick={handleDoubleClick}
         >
+            {/* Edge Creation Indicator */}
+            {isCreatingEdge && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-in fade-in slide-in-from-top-4">
+                    <div className="h-2 w-2 bg-white rounded-full animate-pulse" />
+                    <span className="text-sm font-medium">
+                        {edgeStart !== null ? "Click target node to complete edge" : "Click source node to start"}
+                    </span>
+                </div>
+            )}
             <svg className="absolute top-0 left-0 w-full h-full overflow-visible" style={{ zIndex: 0 }}>
                 <defs>
                     <marker
@@ -422,7 +431,7 @@ function GraphContent({
                                 stroke="#64748b"
                                 strokeWidth={getGraphConstant('EDGE_STROKE_WIDTH', settings)}
                                 markerEnd="url(#arrowhead)"
-                                className={`group-hover:stroke-blue-500 ${edge.isObsolete ? 'opacity-50' : ''} ${edge.id === selectedEdge ? 'stroke-blue-500 stroke-[3]' : ''}`}
+                                className={`transition-all duration-150 group-hover:stroke-blue-500 group-hover:stroke-[2.5] ${edge.isObsolete ? 'opacity-50' : ''} ${edge.id === selectedEdge ? 'stroke-blue-500 stroke-[3]' : ''}`}
                             />
                             {/* Delete button */}
                             <g
