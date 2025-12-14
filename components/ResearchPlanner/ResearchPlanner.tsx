@@ -41,7 +41,6 @@ export default function ResearchPlanner() {
     toggleEdgePlanned
   } = useEdgeOperations();
   
-  const [newItemTitle, setNewItemTitle] = useState('');
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<Set<number>>(new Set());
   const [selectedEdge, setSelectedEdge] = useState<number | null>(null);
@@ -116,9 +115,7 @@ export default function ResearchPlanner() {
   }, [nodes, edges, selectedEdge]);
 
   const handleAddNode = () => {
-    if (!newItemTitle.trim()) return;
-    addNode(newItemTitle, selectedNode || undefined);
-    setNewItemTitle('');
+    addNode('Untitled', selectedNode || undefined);
   };
 
   const handleNodeDelete = useCallback((id: number) => {
@@ -534,7 +531,7 @@ export default function ResearchPlanner() {
   };
 
   const handleAddSubnode = () => {
-    if (!selectedNode || !newItemTitle.trim()) return;
+    if (!selectedNode) return;
 
     const parentNode = nodes.find(n => n.id === selectedNode);
     if (!parentNode) return;
@@ -545,7 +542,7 @@ export default function ResearchPlanner() {
     // Create the child node
     const newNode: GraphNode = {
         id,
-        title: newItemTitle.trim(),
+        title: 'Untitled',
         description: '',
         x: position.x,
         y: position.y,
@@ -580,7 +577,6 @@ export default function ResearchPlanner() {
 
     // Expand the parent node
     setExpandedNodes(prev => new Set(Array.from(prev).concat([selectedNode])));
-    setNewItemTitle('');
   };
 
   // Helper function to get all descendant node IDs recursively
@@ -646,7 +642,7 @@ export default function ResearchPlanner() {
   }, [selectedNode, nodes, getAllDescendantIds]);
 
   const handleCollapseToNode = () => {
-    if (selectedNodes.size <= 1 || !newItemTitle.trim()) return;
+    if (selectedNodes.size <= 1) return;
 
     // Initialize ID generator with existing IDs to ensure uniqueness
     const existingIds = nodes.map(n => n.id);
@@ -662,7 +658,7 @@ export default function ResearchPlanner() {
     // Create the parent node with a guaranteed unique ID
     const parentNode: GraphNode = {
       id: getNextId(),
-      title: newItemTitle.trim(),
+      title: 'Untitled',
       description: '',
       x: avgX,
       y: avgY,
@@ -691,7 +687,6 @@ export default function ResearchPlanner() {
     setExpandedNodes(prev => new Set([...Array.from(prev), parentNode.id]));
     setSelectedNodes(new Set([parentNode.id]));
     setSelectedNode(parentNode.id);
-    setNewItemTitle('');
   };
 
   const handleNodeDragOver = (targetNode: GraphNode) => {
@@ -792,7 +787,7 @@ export default function ResearchPlanner() {
       day = date.toISOString();
     }
 
-    const newNode = createNodeAtPosition('New Node', x, y);
+    const newNode = createNodeAtPosition('Untitled', x, y);
     if (!newNode) return;
 
     // If we have a day value, update the node with it and mark for sync
@@ -828,8 +823,6 @@ export default function ResearchPlanner() {
       <div className="flex h-full w-full overflow-hidden">
         {/* Side Toolbar (Left) */}
         <SideToolbar
-          nodeTitle={newItemTitle}
-          onNodeTitleChange={setNewItemTitle}
           onAddNode={handleAddNode}
           onAddSubnode={handleAddSubnode}
           onCollapseToNode={handleCollapseToNode}

@@ -8,6 +8,7 @@ import React from 'react';
 jest.mock('./useIdGenerator', () => ({
   useIdGenerator: () => ({
     getNextId: () => 1,
+    initializeWithExistingIds: jest.fn(),
   }),
 }));
 

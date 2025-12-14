@@ -6,7 +6,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -17,8 +16,6 @@ import { format } from "date-fns";
 
 interface SideToolbarProps {
   // Node Operations
-  nodeTitle: string;
-  onNodeTitleChange: (value: string) => void;
   onAddNode: () => void;
   onAddSubnode: () => void;
   onCollapseToNode: () => void;
@@ -63,8 +60,6 @@ interface SideToolbarProps {
 
 export function SideToolbar({
   // Node Operations
-  nodeTitle,
-  onNodeTitleChange,
   onAddNode,
   onAddSubnode,
   onCollapseToNode,
@@ -147,11 +142,6 @@ export function SideToolbar({
                 <AccordionContent>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Input
-                        value={nodeTitle}
-                        onChange={(e) => onNodeTitleChange(e.target.value)}
-                        placeholder="Enter node title..."
-                      />
                       <Button onClick={onAddNode} className="w-full">
                         <Plus className="mr-2 h-4 w-4" />
                         Add Node
