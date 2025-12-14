@@ -18,6 +18,8 @@ import type { TimelineConfig } from './utils/timeline';
 import { useCalendarIntegration } from './hooks/useCalendarIntegration';
 import { addDays } from 'date-fns';
 import { SideToolbar } from './components/Toolbar/SideToolbar';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { KeyboardShortcutsHelp } from './components/KeyboardShortcutsHelp/KeyboardShortcutsHelp';
 
 export default function ResearchPlanner() {
   const { 
@@ -93,6 +95,13 @@ export default function ResearchPlanner() {
     node: number | null;
     edge: number | null;
   }>({ node: null, edge: null });
+
+  // Add ref for zoom controls
+  const zoomControlsRef = useRef<{
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetTransform: () => void;
+  } | null>(null);
 
   // Keep the description sync effect
   useEffect(() => {
@@ -183,27 +192,170 @@ export default function ResearchPlanner() {
     setSelectedEdge(null);
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if we're currently editing in any part of the MDXEditor
-      const activeElement = document.activeElement;
-      const isEditingText = 
-        activeElement?.closest('.mdxeditor-root') !== null ||
-        activeElement?.closest('[contenteditable="true"]') !== null ||
-        activeElement?.closest('.prose') !== null ||
-        activeElement?.tagName === 'INPUT' ||
-        activeElement?.tagName === 'TEXTAREA';
+  // Helper function to get all descendant node IDs recursively
+  const getAllDescendantIds = useCallback((nodeId: number, nodesMap: Map<number, GraphNode>): number[] => {
+    const node = nodesMap.get(nodeId);
+    if (!node?.childNodes?.length) return [];
+    
+    const descendants: number[] = [];
+    const stack = [...node.childNodes];
+    
+    while (stack.length > 0) {
+      const currentId = stack.pop()!;
+      descendants.push(currentId);
       
-      if (e.key === 'Delete' && selectedNodes.size > 0 && !isEditingText) {
-        Array.from(selectedNodes).forEach(nodeId => {
-          handleNodeDelete(nodeId);
-        });
+      const currentNode = nodesMap.get(currentId);
+      if (currentNode?.childNodes?.length) {
+        stack.push(...currentNode.childNodes);
       }
-    };
+    }
+    
+    return descendants;
+  }, []);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+  // Toggle expand/collapse for nodes
+  const onToggleExpand = useCallback((nodeId: number) => {
+    setNodes(prev => prev.map(node => {
+      if (node.id === nodeId) {
+        return {
+          ...node,
+          isExpanded: !expandedNodes.has(nodeId)
+        };
+      }
+      return node;
+    }));
+
+    setExpandedNodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      return newSet;
+    });
+  }, [expandedNodes]);
+
+  // Keyboard shortcut handlers
+  const handleKeyboardCreateNode = useCallback(() => {
+    const position = getNewNodePosition(nodes, selectedNode || undefined);
+    createNodeAtPosition('New Node', position.x, position.y);
+  }, [nodes, selectedNode, getNewNodePosition, createNodeAtPosition]);
+
+  const handleKeyboardMarkObsolete = useCallback(() => {
+    if (selectedNode !== null) {
+      markNodeObsolete(selectedNode);
+    }
+  }, [selectedNode, markNodeObsolete]);
+
+  const handleKeyboardDeleteSelected = useCallback(() => {
+    if (selectedNodes.size > 0) {
+      Array.from(selectedNodes).forEach(nodeId => {
+        handleNodeDelete(nodeId);
+      });
+    }
   }, [selectedNodes, handleNodeDelete]);
+
+  const handleKeyboardExpandCollapse = useCallback(() => {
+    if (selectedNode !== null) {
+      const node = nodes.find(n => n.id === selectedNode);
+      if (node?.childNodes?.length) {
+        onToggleExpand(selectedNode);
+      }
+    }
+  }, [selectedNode, nodes]);
+
+  const handleKeyboardClearSelection = useCallback(() => {
+    // First collapse any expanded nodes if there's a selection
+    if (selectedNode !== null) {
+      const node = nodes.find(n => n.id === selectedNode);
+      if (node?.childNodes?.length) {
+        const nodesMap = new Map(nodes.map(n => [n.id, n]));
+        const allDescendants = getAllDescendantIds(selectedNode, nodesMap);
+        
+        setExpandedNodes(prev => {
+          const next = new Set(prev);
+          allDescendants.forEach(id => next.delete(id));
+          next.delete(selectedNode);
+          return next;
+        });
+
+        setNodes(prev => prev.map(n => {
+          if (n.id === selectedNode || allDescendants.includes(n.id)) {
+            return { ...n, isExpanded: false };
+          }
+          return n;
+        }));
+      }
+    }
+    
+    // Then clear selections
+    setSelectedNode(null);
+    setSelectedNodes(new Set());
+    setSelectedEdge(null);
+    
+    // Also exit edge creation mode if active
+    if (isCreatingEdge) {
+      toggleEdgeCreation();
+    }
+  }, [selectedNode, nodes, getAllDescendantIds, isCreatingEdge, toggleEdgeCreation]);
+
+  const handleKeyboardSelectAll = useCallback(() => {
+    const allNodeIds = nodes.map(n => n.id);
+    setSelectedNodes(new Set(allNodeIds));
+    if (allNodeIds.length > 0) {
+      setSelectedNode(allNodeIds[0]);
+    }
+  }, [nodes]);
+
+  const handleKeyboardZoomIn = useCallback(() => {
+    zoomControlsRef.current?.zoomIn();
+  }, []);
+
+  const handleKeyboardZoomOut = useCallback(() => {
+    zoomControlsRef.current?.zoomOut();
+  }, []);
+
+  const handleKeyboardResetZoom = useCallback(() => {
+    zoomControlsRef.current?.resetTransform();
+  }, []);
+
+  const handleKeyboardToggleTimeline = useCallback(() => {
+    setTimelineActive(!timelineActive);
+  }, [timelineActive, setTimelineActive]);
+
+  const handleKeyboardSave = useCallback(() => {
+    contextSaveToFile();
+  }, [contextSaveToFile]);
+
+  const handleKeyboardLoad = useCallback(() => {
+    contextLoadFromFile();
+  }, [contextLoadFromFile]);
+
+  const handleKeyboardExport = useCallback(() => {
+    // Same as save for now
+    contextSaveToFile();
+  }, [contextSaveToFile]);
+
+  // Use the keyboard shortcuts hook
+  useKeyboardShortcuts({
+    handlers: {
+      onCreateNode: handleKeyboardCreateNode,
+      onMarkObsolete: handleKeyboardMarkObsolete,
+      onDeleteSelected: handleKeyboardDeleteSelected,
+      onExpandCollapse: handleKeyboardExpandCollapse,
+      onToggleEdgeCreation: toggleEdgeCreation,
+      onSelectAll: handleKeyboardSelectAll,
+      onClearSelection: handleKeyboardClearSelection,
+      onZoomIn: handleKeyboardZoomIn,
+      onZoomOut: handleKeyboardZoomOut,
+      onResetZoom: handleKeyboardResetZoom,
+      onToggleTimeline: handleKeyboardToggleTimeline,
+      onSave: handleKeyboardSave,
+      onLoad: handleKeyboardLoad,
+      onExport: handleKeyboardExport,
+    },
+  });
 
   // Add effect to watch for goal node selection
   useEffect(() => {
@@ -579,68 +731,6 @@ export default function ResearchPlanner() {
     setExpandedNodes(prev => new Set(Array.from(prev).concat([selectedNode])));
   };
 
-  // Helper function to get all descendant node IDs recursively
-  const getAllDescendantIds = useCallback((nodeId: number, nodesMap: Map<number, GraphNode>): number[] => {
-    const node = nodesMap.get(nodeId);
-    if (!node?.childNodes?.length) return [];
-    
-    const descendants: number[] = [];
-    const stack = [...node.childNodes];
-    
-    while (stack.length > 0) {
-      const currentId = stack.pop()!;
-      descendants.push(currentId);
-      
-      const currentNode = nodesMap.get(currentId);
-      if (currentNode?.childNodes?.length) {
-        stack.push(...currentNode.childNodes);
-      }
-    }
-    
-    return descendants;
-  }, []);
-
-  // Add ESC key handler for collapsing nodes and clearing selections
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (selectedNode !== null) {
-          const node = nodes.find(n => n.id === selectedNode);
-          if (node?.childNodes?.length) {
-            // Create a map for efficient node lookup
-            const nodesMap = new Map(nodes.map(n => [n.id, n]));
-            
-            // Get all descendant nodes recursively
-            const allDescendants = getAllDescendantIds(selectedNode, nodesMap);
-            
-            // Remove all descendants from expanded nodes set
-            setExpandedNodes(prev => {
-              const next = new Set(prev);
-              allDescendants.forEach(id => next.delete(id));
-              next.delete(selectedNode); // Also collapse the selected node
-              return next;
-            });
-
-            // Update all affected nodes' expanded state
-            setNodes(prev => prev.map(n => {
-              if (n.id === selectedNode || allDescendants.includes(n.id)) {
-                return { ...n, isExpanded: false };
-              }
-              return n;
-            }));
-          }
-        }
-        // Clear all selections regardless
-        setSelectedNode(null);
-        setSelectedNodes(new Set());
-        setSelectedEdge(null);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNode, nodes, getAllDescendantIds]);
-
   const handleCollapseToNode = () => {
     if (selectedNodes.size <= 1) return;
 
@@ -751,28 +841,6 @@ export default function ResearchPlanner() {
     setExpandedNodes(prev => new Set([...Array.from(prev), targetId]));
   };
 
-  const onToggleExpand = useCallback((nodeId: number) => {
-    setNodes(prev => prev.map(node => {
-      if (node.id === nodeId) {
-        return {
-          ...node,
-          isExpanded: !expandedNodes.has(nodeId)
-        };
-      }
-      return node;
-    }));
-
-    setExpandedNodes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
-    });
-  }, [expandedNodes]);
-
   // Add state for side toolbar expansion
   const [isSideToolbarExpanded, setIsSideToolbarExpanded] = useState(false);
 
@@ -806,17 +874,7 @@ export default function ResearchPlanner() {
     setSelectedNodes(new Set([newNode.id]));
   };
 
-  // Add this effect after the other useEffect hooks
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isCreatingEdge) {
-        toggleEdgeCreation();
-      }
-    };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCreatingEdge, toggleEdgeCreation]);
 
   return (
     <SettingsProvider>
@@ -855,6 +913,10 @@ export default function ResearchPlanner() {
 
         {/* Main Graph Area */}
         <div className="flex-1 h-full overflow-hidden flex flex-col">
+          {/* Keyboard Shortcuts Help */}
+          <div className="absolute top-4 right-4 z-10">
+            <KeyboardShortcutsHelp />
+          </div>
           <div className="flex-1 relative">
             <NodeGraph
               nodes={nodes}
@@ -883,6 +945,7 @@ export default function ResearchPlanner() {
               isTimelineActive={timelineActive}
               timelineStartDate={timelineStartDate}
               onGraphDoubleClick={handleGraphDoubleClick}
+              zoomControlsRef={zoomControlsRef}
             />
           </div>
         </div>
