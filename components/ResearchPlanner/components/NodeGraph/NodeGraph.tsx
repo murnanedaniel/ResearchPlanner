@@ -555,6 +555,7 @@ export function NodeGraph({
     const [initialPosition, setInitialPosition] = useState({ x: 0, y: 0 });
     const [currentScale, setCurrentScale] = useState(1);
     const [transformState, setTransformState] = useState<any>(null);
+    const lastUpdateRef = React.useRef({ scale: 1, positionX: 0, positionY: 0 });
 
     useEffect(() => {
         setInitialPosition({
@@ -593,20 +594,51 @@ export function NodeGraph({
                 doubleClick={{ disabled: true }}
                 panning={{
                     disabled: isCtrlPressed,
-                    velocityDisabled: true,
+                    velocityDisabled: false,
                     excluded: ['node-drag-handle']
+                }}
+                wheel={{
+                    smoothStep: 0.005,
+                    step: 0.1
+                }}
+                velocityAnimation={{
+                    disabled: false,
+                    sensitivity: 1,
+                    animationTime: 400,
+                    animationType: "easeOutQuad"
+                }}
+                zoomAnimation={{
+                    animationTime: 200,
+                    animationType: "easeOutQuad"
+                }}
+                alignmentAnimation={{
+                    animationTime: 200,
+                    velocityAlignmentTime: 200,
+                    animationType: "easeOutQuad"
                 }}
                 onTransformed={(ref, state) => {
                     // Single source of truth for all transform updates
                     setCurrentScale(state.scale);
                     setTransformState(state);
                     
-                    // Update data attributes directly from transform state
-                    const container = document.querySelector('.graph-container');
-                    if (container) {
-                        container.setAttribute('data-scale', state.scale.toString());
-                        container.setAttribute('data-position-x', state.positionX.toString());
-                        container.setAttribute('data-position-y', state.positionY.toString());
+                    // Only update data attributes if values changed significantly (throttle updates)
+                    const lastUpdate = lastUpdateRef.current;
+                    const scaleChanged = Math.abs(state.scale - lastUpdate.scale) > 0.001;
+                    const posXChanged = Math.abs(state.positionX - lastUpdate.positionX) > 1;
+                    const posYChanged = Math.abs(state.positionY - lastUpdate.positionY) > 1;
+                    
+                    if (scaleChanged || posXChanged || posYChanged) {
+                        const container = document.querySelector('.graph-container');
+                        if (container) {
+                            container.setAttribute('data-scale', state.scale.toString());
+                            container.setAttribute('data-position-x', state.positionX.toString());
+                            container.setAttribute('data-position-y', state.positionY.toString());
+                            lastUpdateRef.current = { 
+                                scale: state.scale, 
+                                positionX: state.positionX, 
+                                positionY: state.positionY 
+                            };
+                        }
                     }
                 }}
             >
