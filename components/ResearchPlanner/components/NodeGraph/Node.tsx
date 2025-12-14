@@ -119,8 +119,16 @@ export function Node({
             dragImage.style.opacity = '0.8';
             document.body.appendChild(dragImage);
             e.dataTransfer.setDragImage(dragImage, rect.width / 2, rect.height / 2);
-            // Clean up after a short delay
-            setTimeout(() => document.body.removeChild(dragImage), 0);
+            // Clean up after a short delay with error handling
+            setTimeout(() => {
+                try {
+                    if (dragImage && dragImage.parentNode) {
+                        document.body.removeChild(dragImage);
+                    }
+                } catch (error) {
+                    // Silently ignore if element was already removed
+                }
+            }, 0);
         }
         
         setIsDragging(true);

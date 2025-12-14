@@ -10,22 +10,34 @@ export function HelpOverlay() {
 
   useEffect(() => {
     // Check if user has already dismissed this
-    const dismissed = localStorage.getItem('help-overlay-dismissed');
-    if (!dismissed) {
-      // Show overlay after a short delay
+    try {
+      const dismissed = localStorage.getItem('help-overlay-dismissed');
+      if (!dismissed) {
+        // Show overlay after a short delay
+        const timer = setTimeout(() => {
+          setIsVisible(true);
+        }, 2000);
+        return () => clearTimeout(timer);
+      } else {
+        setIsDismissed(true);
+      }
+    } catch (error) {
+      // If localStorage is not available, just show the overlay
       const timer = setTimeout(() => {
         setIsVisible(true);
       }, 2000);
       return () => clearTimeout(timer);
-    } else {
-      setIsDismissed(true);
     }
   }, []);
 
   const handleDismiss = () => {
     setIsVisible(false);
     setIsDismissed(true);
-    localStorage.setItem('help-overlay-dismissed', 'true');
+    try {
+      localStorage.setItem('help-overlay-dismissed', 'true');
+    } catch (error) {
+      // Silently ignore if localStorage is not available
+    }
   };
 
   if (isDismissed || !isVisible) return null;

@@ -5,6 +5,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// Detect platform for appropriate modifier key display
+const isMac = typeof window !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+const modifierKey = isMac ? 'Cmd' : 'Ctrl';
+
 export function KeyboardShortcuts() {
   const [open, setOpen] = useState(false);
 
@@ -65,8 +69,8 @@ export function KeyboardShortcuts() {
             </Section>
 
             <Section title="Multi-Selection">
-              <Shortcut keys={["Ctrl", "Click"]} description="Toggle node selection" />
-              <Shortcut keys={["Ctrl", "Drag"]} description="Box select multiple nodes" />
+              <Shortcut keys={[modifierKey, "Click"]} description="Toggle node selection" />
+              <Shortcut keys={[modifierKey, "Drag"]} description="Box select multiple nodes" />
               <Shortcut keys={["Drag selected"]} description="Move all selected nodes" />
             </Section>
 
@@ -81,11 +85,11 @@ export function KeyboardShortcuts() {
             <Section title="Navigation">
               <Shortcut keys={["Drag canvas"]} description="Pan view" />
               <Shortcut keys={["Mouse wheel"]} description="Zoom in/out" />
-              <Shortcut keys={["Ctrl", "Drag canvas"]} description="Box select (no pan)" />
+              <Shortcut keys={[modifierKey, "Drag canvas"]} description="Box select (no pan)" />
             </Section>
 
             <Section title="Special Features">
-              <Shortcut keys={["Ctrl", "Drag onto node"]} description="Make dragged node a child" />
+              <Shortcut keys={[modifierKey, "Drag onto node"]} description="Make dragged node a child" />
               <Shortcut keys={["?"]} description="Show this help dialog" />
             </Section>
           </div>
