@@ -125,7 +125,7 @@ export default function ResearchPlanner() {
   }, [nodes, edges, selectedEdge]);
 
   const handleAddNode = () => {
-    addNode('Untitled', selectedNode || undefined);
+    addNode('Untitled', selectedNode !== null ? selectedNode : undefined);
   };
 
   const handleNodeDelete = useCallback((id: number) => {
@@ -194,53 +194,62 @@ export default function ResearchPlanner() {
   }, []);
 
   // Helper function to get all descendant node IDs recursively
+  // Includes cycle detection to prevent infinite loops
   const getAllDescendantIds = useCallback((nodeId: number, nodesMap: Map<number, GraphNode>): number[] => {
     const node = nodesMap.get(nodeId);
     if (!node?.childNodes?.length) return [];
-    
+
     const descendants: number[] = [];
+    const visited = new Set<number>(); // Cycle detection
     const stack = [...node.childNodes];
-    
+
     while (stack.length > 0) {
       const currentId = stack.pop()!;
+
+      // Skip if already visited (cycle detected)
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
       descendants.push(currentId);
-      
+
       const currentNode = nodesMap.get(currentId);
       if (currentNode?.childNodes?.length) {
         stack.push(...currentNode.childNodes);
       }
     }
-    
+
     return descendants;
   }, []);
 
   // Toggle expand/collapse for nodes
+  // Uses functional updates to avoid stale state issues
   const onToggleExpand = useCallback((nodeId: number) => {
-    setNodes(prev => prev.map(node => {
-      if (node.id === nodeId) {
-        return {
-          ...node,
-          isExpanded: !expandedNodes.has(nodeId)
-        };
-      }
-      return node;
-    }));
-
     setExpandedNodes(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
+      const willBeExpanded = !prev.has(nodeId);
+
+      if (willBeExpanded) {
         newSet.add(nodeId);
+      } else {
+        newSet.delete(nodeId);
       }
+
+      // Update nodes using the computed value
+      setNodes(nodesPrev => nodesPrev.map(node => {
+        if (node.id === nodeId) {
+          return { ...node, isExpanded: willBeExpanded };
+        }
+        return node;
+      }));
+
       return newSet;
     });
-  }, [expandedNodes]);
+  }, []);
 
   // Keyboard shortcut handlers
   const handleKeyboardCreateNode = useCallback(() => {
-    const position = getNewNodePosition(nodes, selectedNode || undefined);
-    createNodeAtPosition('New Node', position.x, position.y);
+    const position = getNewNodePosition(nodes, selectedNode !== null ? selectedNode : undefined);
+    createNodeAtPosition('Untitled', position.x, position.y);
   }, [nodes, selectedNode, getNewNodePosition, createNodeAtPosition]);
 
   const handleKeyboardMarkObsolete = useCallback(() => {
@@ -264,7 +273,7 @@ export default function ResearchPlanner() {
         onToggleExpand(selectedNode);
       }
     }
-  }, [selectedNode, nodes]);
+  }, [selectedNode, nodes, onToggleExpand]);
 
   const handleKeyboardClearSelection = useCallback(() => {
     // First collapse any expanded nodes if there's a selection
@@ -684,7 +693,7 @@ export default function ResearchPlanner() {
   };
 
   const handleAddSubnode = () => {
-    if (!selectedNode) return;
+    if (selectedNode === null) return;
 
     const parentNode = nodes.find(n => n.id === selectedNode);
     if (!parentNode) return;

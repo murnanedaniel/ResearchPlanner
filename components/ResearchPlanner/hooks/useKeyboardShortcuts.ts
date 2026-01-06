@@ -45,13 +45,15 @@ export function useKeyboardShortcuts({
     if (!enabled) return;
 
     // Check if we're currently editing text
+    // Use Boolean() to ensure proper coercion when activeElement is null/undefined
     const activeElement = document.activeElement;
-    const isEditingText = 
-      activeElement?.closest('.mdxeditor-root') !== null ||
-      activeElement?.closest('[contenteditable="true"]') !== null ||
-      activeElement?.closest('.prose') !== null ||
+    const isEditingText = Boolean(activeElement) && (
+      Boolean(activeElement?.closest('.mdxeditor-root')) ||
+      Boolean(activeElement?.closest('[contenteditable="true"]')) ||
+      Boolean(activeElement?.closest('.prose')) ||
       activeElement?.tagName === 'INPUT' ||
-      activeElement?.tagName === 'TEXTAREA';
+      activeElement?.tagName === 'TEXTAREA'
+    );
 
     // File operations (Ctrl/Cmd + key)
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
@@ -77,6 +79,12 @@ export function useKeyboardShortcuts({
           }
           return;
       }
+    }
+
+    // Allow Escape even when editing text (for canceling edge creation, etc.)
+    if (e.key === 'Escape') {
+      handlers.onClearSelection?.();
+      return;
     }
 
     // Skip other shortcuts if editing text
@@ -121,19 +129,19 @@ export function useKeyboardShortcuts({
           handlers.onDeleteSelected?.();
         }
         break;
-      case 'escape':
-        handlers.onClearSelection?.();
-        break;
+      // Note: Escape is handled above to work even during text editing
       case '+':
       case '=':
-        if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+        // Allow Shift for + (Shift+= on most keyboards) but not Ctrl/Meta/Alt
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
           handlers.onZoomIn?.();
         }
         break;
       case '-':
       case '_':
-        if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+        // Allow Shift for _ (Shift+- on most keyboards) but not Ctrl/Meta/Alt
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
           handlers.onZoomOut?.();
         }
