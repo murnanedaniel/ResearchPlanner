@@ -1,6 +1,6 @@
 # ResearchPlanner — Project Status Overview
 
-> Generated: 2026-03-13
+> Generated: 2026-03-14 | Updated after PR merges
 
 ---
 
@@ -66,40 +66,37 @@
 
 ---
 
-## Open Pull Requests
+## Pull Requests — Actions Taken
 
-| # | Title | Branch | State | Addresses |
-|---|-------|--------|-------|-----------|
-| [#15](../../pull/15) | Remove node title input — instant node creation | `copilot/remove-node-title-requirement` | Draft | Issue #9 |
-| [#16](../../pull/16) | [WIP] Replace edge creation mode with keyboard shortcut | `copilot/replace-edge-creation-mode` | Draft | Issue #10 |
-| [#17](../../pull/17) | Add keyboard shortcuts cheat sheet overlay | `copilot/add-keyboard-shortcuts-cheat-sheet` | Draft | Issue #11 |
-| [#18](../../pull/18) | Add comprehensive keyboard shortcuts for all actions | `copilot/add-keyboard-shortcuts` | Draft | Issue #5 |
-| **[#19](../../pull/19)** | **Merge keyboard shortcuts + node title creation** | `claude/review-recent-prs-0UZ1N` | **Open** | Issues #5, #9, #11 |
-| [#20](../../pull/20) | Web-standard UI interactions (cursors, tooltips, context menus) | `copilot/audit-ui-ux-interactions` | Draft | Issue #6 |
-| [#21](../../pull/21) | Optimize pan/zoom with velocity animation | `copilot/improve-pan-zoom-responsiveness` | Draft | Issues #3, #7 |
+### Merged
+| # | Title | Action |
+|---|-------|--------|
+| **[#19](../../pull/19)** | Merge keyboard shortcuts + node title creation | **Merged** into `main` — consolidates keyboard shortcuts, help dialog, instant node creation, UI polish |
 
-### PR #19 — Key PR to Review
+### Closed (superseded by #19)
+| # | Title | Reason |
+|---|-------|--------|
+| [#15](../../pull/15) | Remove node title input — instant node creation | Included in PR #19 |
+| [#17](../../pull/17) | Add keyboard shortcuts cheat sheet overlay | Included in PR #19 (KeyboardShortcutsHelp component) |
+| [#18](../../pull/18) | Add comprehensive keyboard shortcuts | Included in PR #19 (useKeyboardShortcuts hook) |
+| [#20](../../pull/20) | Web-standard UI interactions | Included in PR #19 (cursors, tooltips, context menus) |
+| [#21](../../pull/21) | Optimize pan/zoom with velocity animation | Included in PR #19 (velocity panning, smooth zoom) |
 
-PR #19 (`claude/review-recent-prs-0UZ1N`) is the only non-draft open PR. It consolidates the work from drafts #15, #17, and #18 into a single cohesive change:
-
-- New `useKeyboardShortcuts` hook — centralized, context-aware, platform-aware (Cmd/Ctrl)
-- `KeyboardShortcutsDialog` component — in-app cheat sheet via `?` hotkey
-- Zoom, timeline, and file operation shortcuts integrated into `ResearchPlanner.tsx`
-- Default "Untitled" node/subgraph creation — removes the title-input-before-create flow
-
-**Recommendation:** Review and merge PR #19 first; then evaluate whether drafts #15, #17, #18 can be closed as superseded.
+### Still Open (WIP)
+| # | Title | Branch | Status |
+|---|-------|--------|--------|
+| [#16](../../pull/16) | [WIP] Replace edge creation mode with keyboard shortcut | `copilot/replace-edge-creation-mode` | Draft — broad scope (touches calendar, persistence, selection context); not ready for merge |
 
 ---
 
-## Suggested Priority Order
+## Suggested Next Priorities
 
-1. **Merge PR #19** — Keyboard shortcuts + instant node creation; already open and ready for review
-2. **Review draft PRs #20, #21** — Pan/zoom optimization and UI polish; promote from draft when ready
-3. **Fix issue #8** — Collapse/expand bugs affect core graph interaction
-4. **Fix issue #14** — Z-index selection is a fundamental UX pain point
-5. **Fix issues #3 / #7** — Node drag lag and pan/zoom feel (PR #21 addresses this)
-6. **Issue #12** — Quick cosmetic win: remove canvas border
-7. **Issue #13** — Research/decision task for magnifier feature before any implementation
+1. **Fix issue #8** — Collapse/expand bugs affect core graph interaction
+2. **Fix issue #14** — Z-index selection is a fundamental UX pain point
+3. **Fix issues #3 / #7** — Node drag lag and pan/zoom feel
+4. **Issue #12** — Quick cosmetic win: remove canvas border
+5. **Issue #10 / PR #16** — Continue WIP on replacing edge creation mode
+6. **Issue #13** — Research/decision task for magnifier feature before any implementation
 
 ---
 
