@@ -13,18 +13,51 @@ import { getTimelineConfig, getPixelsPerUnit, snapToGrid } from '../../utils/tim
 import type { TimelineConfig } from '../../utils/timeline';
 import { useSettings } from '../../context/SettingsContext';
 
-function ZoomControls() {
+function ZoomControls({ 
+  controlsRef 
+}: { 
+  controlsRef?: React.MutableRefObject<{
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetTransform: () => void;
+  } | null> 
+}) {
   const { zoomIn, zoomOut, resetTransform } = useControls();
+  
+  // Expose controls through ref
+  React.useEffect(() => {
+    if (controlsRef) {
+      controlsRef.current = { zoomIn, zoomOut, resetTransform };
+    }
+  }, [controlsRef, zoomIn, zoomOut, resetTransform]);
   
   return (
     <div className="absolute bottom-4 right-4 flex gap-2">
-      <Button variant="outline" size="icon" onClick={() => zoomIn()}>
+      <Button 
+        variant="outline" 
+        size="icon" 
+        onClick={() => zoomIn()}
+        title="Zoom in"
+        aria-label="Zoom in"
+      >
         <ZoomIn className="h-4 w-4" />
       </Button>
-      <Button variant="outline" size="icon" onClick={() => zoomOut()}>
+      <Button 
+        variant="outline" 
+        size="icon" 
+        onClick={() => zoomOut()}
+        title="Zoom out"
+        aria-label="Zoom out"
+      >
         <ZoomOut className="h-4 w-4" />
       </Button>
-      <Button variant="outline" size="icon" onClick={() => resetTransform()}>
+      <Button 
+        variant="outline" 
+        size="icon" 
+        onClick={() => resetTransform()}
+        title="Reset view"
+        aria-label="Reset view"
+      >
         <Maximize className="h-4 w-4" />
       </Button>
     </div>
@@ -58,6 +91,11 @@ interface NodeGraphProps {
     isTimelineActive: boolean;
     timelineStartDate: Date;
     onGraphDoubleClick?: (x: number, y: number, event: React.MouseEvent) => void;
+    zoomControlsRef?: React.MutableRefObject<{
+        zoomIn: () => void;
+        zoomOut: () => void;
+        resetTransform: () => void;
+    } | null>;
 }
 
 interface SelectionBox {
@@ -295,7 +333,7 @@ function GraphContent({
 
     return (
         <div 
-            className="relative"
+            className={`relative ${isCreatingEdge ? 'cursor-crosshair' : ''}`}
             style={{ width: `${GRAPH_CONSTANTS.CANVAS_SIZE}px`, height: `${GRAPH_CONSTANTS.CANVAS_SIZE}px` }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -303,6 +341,15 @@ function GraphContent({
             onMouseLeave={handleMouseUp}
             onDoubleClick={handleDoubleClick}
         >
+            {/* Edge Creation Indicator */}
+            {isCreatingEdge && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-in fade-in slide-in-from-top-4">
+                    <div className="h-2 w-2 bg-white rounded-full animate-pulse" />
+                    <span className="text-sm font-medium">
+                        {edgeStart !== null ? "Click target node to complete edge" : "Click source node to start"}
+                    </span>
+                </div>
+            )}
             <svg className="absolute top-0 left-0 w-full h-full overflow-visible" style={{ zIndex: 0 }}>
                 <defs>
                     <marker
@@ -404,7 +451,7 @@ function GraphContent({
                                 stroke="#64748b"
                                 strokeWidth={getGraphConstant('EDGE_STROKE_WIDTH', settings)}
                                 markerEnd="url(#arrowhead)"
-                                className={`group-hover:stroke-blue-500 ${edge.isObsolete ? 'opacity-50' : ''} ${edge.id === selectedEdge ? 'stroke-blue-500 stroke-[3]' : ''}`}
+                                className={`transition-all duration-150 group-hover:stroke-blue-500 group-hover:stroke-[2.5] ${edge.isObsolete ? 'opacity-50' : ''} ${edge.id === selectedEdge ? 'stroke-blue-500 stroke-[3]' : ''}`}
                             />
                             {/* Delete button */}
                             <g
@@ -501,12 +548,14 @@ export function NodeGraph({
     onNodeDrop,
     isTimelineActive,
     timelineStartDate,
-    onGraphDoubleClick
+    onGraphDoubleClick,
+    zoomControlsRef
 }: NodeGraphProps) {
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
     const [initialPosition, setInitialPosition] = useState({ x: 0, y: 0 });
     const [currentScale, setCurrentScale] = useState(1);
     const [transformState, setTransformState] = useState<any>(null);
+    const lastUpdateRef = React.useRef({ scale: 1, positionX: 0, positionY: 0 });
 
     useEffect(() => {
         setInitialPosition({
@@ -545,20 +594,51 @@ export function NodeGraph({
                 doubleClick={{ disabled: true }}
                 panning={{
                     disabled: isCtrlPressed,
-                    velocityDisabled: true,
+                    velocityDisabled: false,
                     excluded: ['node-drag-handle']
+                }}
+                wheel={{
+                    smoothStep: 0.005,
+                    step: 0.1
+                }}
+                velocityAnimation={{
+                    disabled: false,
+                    sensitivity: 1,
+                    animationTime: 400,
+                    animationType: "easeOutQuad"
+                }}
+                zoomAnimation={{
+                    animationTime: 200,
+                    animationType: "easeOutQuad"
+                }}
+                alignmentAnimation={{
+                    animationTime: 200,
+                    velocityAlignmentTime: 200,
+                    animationType: "easeOutQuad"
                 }}
                 onTransformed={(ref, state) => {
                     // Single source of truth for all transform updates
                     setCurrentScale(state.scale);
                     setTransformState(state);
                     
-                    // Update data attributes directly from transform state
-                    const container = document.querySelector('.graph-container');
-                    if (container) {
-                        container.setAttribute('data-scale', state.scale.toString());
-                        container.setAttribute('data-position-x', state.positionX.toString());
-                        container.setAttribute('data-position-y', state.positionY.toString());
+                    // Only update data attributes if values changed significantly (throttle updates)
+                    const lastUpdate = lastUpdateRef.current;
+                    const scaleChanged = Math.abs(state.scale - lastUpdate.scale) > 0.001;
+                    const posXChanged = Math.abs(state.positionX - lastUpdate.positionX) > 1;
+                    const posYChanged = Math.abs(state.positionY - lastUpdate.positionY) > 1;
+                    
+                    if (scaleChanged || posXChanged || posYChanged) {
+                        const container = document.querySelector('.graph-container');
+                        if (container) {
+                            container.setAttribute('data-scale', state.scale.toString());
+                            container.setAttribute('data-position-x', state.positionX.toString());
+                            container.setAttribute('data-position-y', state.positionY.toString());
+                            lastUpdateRef.current = { 
+                                scale: state.scale, 
+                                positionX: state.positionX, 
+                                positionY: state.positionY 
+                            };
+                        }
                     }
                 }}
             >
@@ -598,7 +678,7 @@ export function NodeGraph({
                         onGraphDoubleClick={onGraphDoubleClick}
                     />
                 </TransformComponent>
-                <ZoomControls />
+                <ZoomControls controlsRef={zoomControlsRef} />
             </TransformWrapper>
         </div>
     );
