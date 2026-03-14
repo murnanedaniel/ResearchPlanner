@@ -1,6 +1,11 @@
+import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react';
 import { NodeGraph } from '@/components/ResearchPlanner/components/NodeGraph/NodeGraph';
 import { GraphNode, Edge } from '@/components/ResearchPlanner/types/index';
+import { SettingsProvider } from '@/components/ResearchPlanner/context/SettingsContext';
+
+const renderWithProviders = (ui: React.ReactElement) =>
+    render(<SettingsProvider>{ui}</SettingsProvider>);
 
 // Mock the TransformWrapper component and its context
 jest.mock('react-zoom-pan-pinch', () => ({
@@ -27,6 +32,11 @@ describe('NodeGraph Parent/Child Functionality', () => {
         onNodeDragEnd: jest.fn(),
         onMarkObsolete: jest.fn(),
         onMultiSelect: jest.fn(),
+        selectedEdge: null,
+        onNodeDragOver: jest.fn(),
+        onNodeDrop: jest.fn(),
+        isTimelineActive: false,
+        timelineStartDate: new Date(),
     };
 
     const createTestNodes = (): GraphNode[] => [
@@ -86,7 +96,7 @@ describe('NodeGraph Parent/Child Functionality', () => {
         const edges = createTestEdges();
         const expandedNodes = new Set<number>();
 
-        render(
+        renderWithProviders(
             <NodeGraph
                 nodes={nodes}
                 edges={edges}
@@ -115,7 +125,7 @@ describe('NodeGraph Parent/Child Functionality', () => {
         const edges = createTestEdges();
         const expandedNodes = new Set([1]); // Parent node is expanded
 
-        render(
+        renderWithProviders(
             <NodeGraph
                 nodes={nodes}
                 edges={edges}
@@ -143,6 +153,7 @@ describe('NodeGraph Parent/Child Functionality', () => {
         
         // First render with parent collapsed
         const { rerender } = render(
+            <SettingsProvider>
             <NodeGraph
                 nodes={nodes}
                 edges={edges}
@@ -156,6 +167,7 @@ describe('NodeGraph Parent/Child Functionality', () => {
                 expandedNodes={new Set()}
                 {...mockHandlers}
             />
+            </SettingsProvider>
         );
 
         // No edges should be visible when parent is collapsed
@@ -164,6 +176,7 @@ describe('NodeGraph Parent/Child Functionality', () => {
 
         // Rerender with parent expanded
         rerender(
+            <SettingsProvider>
             <NodeGraph
                 nodes={nodes}
                 edges={edges}
@@ -177,6 +190,7 @@ describe('NodeGraph Parent/Child Functionality', () => {
                 expandedNodes={new Set([1])}
                 {...mockHandlers}
             />
+            </SettingsProvider>
         );
 
         // All edges should be visible when parent is expanded
@@ -189,7 +203,7 @@ describe('NodeGraph Parent/Child Functionality', () => {
         const edges = createTestEdges();
         const expandedNodes = new Set<number>();
 
-        render(
+        renderWithProviders(
             <NodeGraph
                 nodes={nodes}
                 edges={edges}

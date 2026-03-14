@@ -16,7 +16,14 @@ jest.mock('@mdxeditor/editor', () => ({
   headingsPlugin: () => ({}),
   listsPlugin: () => ({}),
   quotePlugin: () => ({}),
-  markdownShortcutPlugin: () => ({})
+  markdownShortcutPlugin: () => ({}),
+  tablePlugin: () => ({}),
+  thematicBreakPlugin: () => ({}),
+  linkPlugin: () => ({}),
+  imagePlugin: () => ({}),
+  frontmatterPlugin: () => ({}),
+  codeBlockPlugin: () => ({}),
+  diffSourcePlugin: () => ({})
 }));
 
 describe('SidePanel', () => {

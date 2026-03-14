@@ -49,7 +49,7 @@ export function ScalingText({
         
         // Restore transform based on current scale
         textElement.style.transform = `scale(${scale})`;
-    }, [text, maxLines, settings]);
+    }, [text, maxLines, settings, scale]);
 
     const maxFontSize = getGraphConstant('MAX_FONT_SIZE', settings);
     const lineHeight = maxFontSize * getGraphConstant('LINE_HEIGHT', settings);

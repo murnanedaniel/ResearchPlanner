@@ -244,7 +244,7 @@ export default function ResearchPlanner() {
 
       return newSet;
     });
-  }, []);
+  }, [setNodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard shortcut handlers
   const handleKeyboardCreateNode = useCallback(() => {
@@ -308,7 +308,7 @@ export default function ResearchPlanner() {
     if (isCreatingEdge) {
       toggleEdgeCreation();
     }
-  }, [selectedNode, nodes, getAllDescendantIds, isCreatingEdge, toggleEdgeCreation]);
+  }, [selectedNode, nodes, getAllDescendantIds, isCreatingEdge, toggleEdgeCreation, setNodes, setExpandedNodes]);
 
   const handleKeyboardSelectAll = useCallback(() => {
     const allNodeIds = nodes.map(n => n.id);
@@ -372,7 +372,7 @@ export default function ResearchPlanner() {
     if (selectedGoalNodes.length > 0 && autocompleteMode === 'goal') {
       handleAutocompleteGenerate();
     }
-  }, [selectedGoalNodes]);
+  }, [selectedGoalNodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEditNode = (node: GraphNode) => {
     // If this is an expansion state change

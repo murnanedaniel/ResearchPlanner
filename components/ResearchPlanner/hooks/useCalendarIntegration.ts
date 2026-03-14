@@ -53,7 +53,7 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
       }
       initialLoadRef.current = true;
     }
-  }, [calendar.isAuthenticated, calendar.isInitializing, calendar.isInitialized]);
+  }, [calendar.isAuthenticated, calendar.isInitializing, calendar.isInitialized, loadCalendarState]);
 
   // Combined effect for auth and sync state changes
   useEffect(() => {
@@ -69,7 +69,7 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
         isCalendarAuthenticated: calendar.isAuthenticated
       });
     }
-  }, [isCalendarSyncEnabled, calendar.isAuthenticated, calendar.isInitializing, calendar.isInitialized]);
+  }, [isCalendarSyncEnabled, calendar.isAuthenticated, calendar.isInitializing, calendar.isInitialized, saveCalendarState]);
 
   // Unified debounced calendar sync effect
   useEffect(() => {
@@ -126,7 +126,8 @@ export function useCalendarIntegration({ nodes, setNodes }: UseCalendarIntegrati
     }, 2000); // 2 second debounce
 
     return () => clearTimeout(timer);
-  }, [nodes, dirtyNodes, isCalendarSyncEnabled, calendar.isAuthenticated]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, dirtyNodes, isCalendarSyncEnabled, calendar.isAuthenticated, calendar.syncNode, calendar.updateNode, setNodes]);
 
   const deleteCalendarEvent = async (eventId: string) => {
     if (isCalendarSyncEnabled && calendar.isAuthenticated) {

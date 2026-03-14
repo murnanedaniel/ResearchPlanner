@@ -39,7 +39,13 @@ describe('useGraphPersistence', () => {
 
     // Save the data
     act(() => {
-      result.current.saveGraph([testNode], [testEdge]);
+      result.current.saveGraph({
+        nodes: [testNode],
+        edges: [testEdge],
+        timelineActive: false,
+        timelineStartDate: new Date().toISOString(),
+        expandedNodes: []
+      });
     });
 
     // Verify localStorage was called with correct data
@@ -73,7 +79,13 @@ describe('useGraphPersistence', () => {
 
     // Save the data
     act(() => {
-      result.current.saveGraph([nodeWithEmptyDesc], []);
+      result.current.saveGraph({
+        nodes: [nodeWithEmptyDesc],
+        edges: [],
+        timelineActive: false,
+        timelineStartDate: new Date().toISOString(),
+        expandedNodes: []
+      });
     });
 
     // Mock loading the saved data

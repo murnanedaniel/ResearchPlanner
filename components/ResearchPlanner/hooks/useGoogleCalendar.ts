@@ -85,7 +85,7 @@ export function useGoogleCalendar({ clientId, apiKey }: UseGoogleCalendarConfig)
         // Silent fail for auto-initialization
       });
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(async () => {
     setError(null);

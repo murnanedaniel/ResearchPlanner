@@ -2,6 +2,7 @@ import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react';
 import { Node } from './Node';
 import { GraphNode } from '../../types';
+import { SettingsProvider } from '../../context/SettingsContext';
 
 // Mock the transform context
 jest.mock('react-zoom-pan-pinch', () => ({
@@ -13,6 +14,9 @@ jest.mock('react-zoom-pan-pinch', () => ({
     }
   })
 }));
+
+const renderWithProviders = (ui: React.ReactElement) =>
+  render(<SettingsProvider>{ui}</SettingsProvider>);
 
 describe('Node Component', () => {
   const mockNode: GraphNode = {
@@ -38,6 +42,10 @@ describe('Node Component', () => {
     onEdgeCreate: jest.fn(),
     onDragEnd: jest.fn(),
     onMarkObsolete: jest.fn(),
+    nodes: [mockNode],
+    isMultiSelected: false,
+    onToggleExpand: jest.fn(),
+    scale: 1,
   };
 
   beforeEach(() => {
@@ -45,61 +53,68 @@ describe('Node Component', () => {
   });
 
   it('renders with correct title', () => {
-    render(<Node {...defaultProps} />);
+    renderWithProviders(<Node {...defaultProps} />);
     expect(screen.getByText('Test Node')).toBeInTheDocument();
   });
 
   it('applies correct styling when selected', () => {
-    const { container } = render(<Node {...defaultProps} isSelected={true} />);
-    expect(container.firstChild).toHaveClass('ring-2', 'ring-blue-500');
+    const { container } = renderWithProviders(<Node {...defaultProps} isSelected={true} />);
+    const styledDiv = container.querySelector('.ring-blue-500');
+    expect(styledDiv).not.toBeNull();
+    expect(styledDiv).toHaveClass('ring-2', 'ring-blue-500');
   });
 
   it('applies correct styling when marked as start node', () => {
-    const { container } = render(<Node {...defaultProps} isStartNode={true} />);
-    expect(container.firstChild).toHaveClass('ring-2', 'ring-emerald-500');
+    const { container } = renderWithProviders(<Node {...defaultProps} isStartNode={true} />);
+    const styledDiv = container.querySelector('.ring-emerald-500');
+    expect(styledDiv).not.toBeNull();
+    expect(styledDiv).toHaveClass('ring-2', 'ring-emerald-500');
   });
 
   it('applies correct styling when marked as goal node', () => {
-    const { container } = render(<Node {...defaultProps} isGoalNode={true} />);
-    expect(container.firstChild).toHaveClass('ring-2', 'ring-blue-500');
+    const { container } = renderWithProviders(<Node {...defaultProps} isGoalNode={true} />);
+    const styledDiv = container.querySelector('.ring-blue-500');
+    expect(styledDiv).not.toBeNull();
+    expect(styledDiv).toHaveClass('ring-2', 'ring-blue-500');
   });
 
   it('calls onNodeClick when clicked', () => {
-    render(<Node {...defaultProps} />);
+    renderWithProviders(<Node {...defaultProps} />);
     fireEvent.click(screen.getByText('Test Node'));
-    expect(defaultProps.onNodeClick).toHaveBeenCalledWith(mockNode);
+    expect(defaultProps.onNodeClick).toHaveBeenCalledWith(mockNode, expect.any(Object));
   });
 
   it('calls onEdgeCreate when clicked in edge creation mode', () => {
-    render(<Node {...defaultProps} isCreatingEdge={true} />);
+    renderWithProviders(<Node {...defaultProps} isCreatingEdge={true} />);
     fireEvent.click(screen.getByText('Test Node'));
     expect(defaultProps.onEdgeCreate).toHaveBeenCalledWith(mockNode.id);
   });
 
   it('calls onNodeEdit on double click', () => {
-    render(<Node {...defaultProps} />);
+    renderWithProviders(<Node {...defaultProps} />);
     fireEvent.doubleClick(screen.getByText('Test Node'));
     expect(defaultProps.onNodeEdit).toHaveBeenCalledWith(mockNode);
   });
 
   it('calls onNodeDelete when delete button is clicked', () => {
-    render(<Node {...defaultProps} />);
+    renderWithProviders(<Node {...defaultProps} />);
     const deleteButton = screen.getByRole('button', { name: 'Delete node' });
     fireEvent.click(deleteButton);
     expect(defaultProps.onNodeDelete).toHaveBeenCalledWith(mockNode.id);
   });
 
   it('calls onMarkObsolete when obsolete button is clicked', () => {
-    render(<Node {...defaultProps} />);
+    renderWithProviders(<Node {...defaultProps} />);
     const obsoleteButton = screen.getByRole('button', { name: 'Mark as obsolete' });
     fireEvent.click(obsoleteButton);
     expect(defaultProps.onMarkObsolete).toHaveBeenCalledWith(mockNode.id);
   });
 
   it('applies opacity styling when node is obsolete', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Node {...defaultProps} node={{ ...mockNode, isObsolete: true }} />
     );
-    expect(container.firstChild).toHaveClass('opacity-50');
+    const styledDiv = container.querySelector('.opacity-50');
+    expect(styledDiv).not.toBeNull();
   });
 }); 
